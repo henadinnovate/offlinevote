@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ultra-vibrant real-time live audience polling arena with hardware keypad bridge and interactive sentiment analytics.">
+  <title>Live Polling Arena — Real-Time Sentiment Duel</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Ambient Dynamic Stage Lighting -->
+  <div class="ambient-stage">
+    <div class="ambient-orb ambient-orb-fire" id="ambientFireOrb"></div>
+    <div class="ambient-orb ambient-orb-cold" id="ambientColdOrb"></div>
+    <div class="ambient-grid"></div>
+  </div>
+
+  <!-- Realtime Particle Burst FX Canvas -->
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="app-container">
+    
+    <!-- Top Utility Bar (Clean Presentation Mode with Settings) -->
+    <header class="top-toolbar">
+      <div class="control-pills">
+        <button class="pill-btn icon-only" id="settingsBtn" title="Arena Settings (Theme, Sound, Demo) (Shortcut: S)">
+          <span>⚙️</span>
+        </button>
+        <button class="pill-btn icon-only" id="fullscreenBtn" title="Toggle Fullscreen (Shortcut: F)">
+          <span>⛶</span>
+        </button>
+        <button class="pill-btn icon-only" id="resetBtn" title="Reset Counts (Shortcut: R)">
+          <span>↺</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Header Section with OFFLINE Logo & Headline -->
+    <section class="header">
+      <div class="brand-logo-container">
+        <img src="assets/offline-logo.jpg" alt="OFFLINE - Less Scrolling.. More Vibes" class="brand-logo-img" id="brandLogo">
+      </div>
+      <h1 id="arenaTitle">OFFLINE LIVE ARENA</h1>
+      <p class="brand-tagline">LESS SCROLLING.. MORE VIBES</p>
+      <p class="header-subtitle">
+        Vote using your keypad: 
+        <span class="keypad-badge">1</span> Fire 🔥 &nbsp;|&nbsp; 
+        <span class="keypad-badge">2</span> Cold Chill 🥶
+      </p>
+    </section>
+
+    <!-- Duel Ratio Momentum Bar -->
+    <div class="battle-meter-wrapper" id="battleMeter">
+      <div class="battle-meta">
+        <div class="battle-score-left">
+          <span>🔥 FIRE</span>
+          <span id="fireRatioText">50%</span>
+        </div>
+        <div class="battle-duel-pill" id="leadPill">DUEL TIED</div>
+        <div class="battle-score-right">
+          <span id="coldRatioText">50%</span>
+          <span>COLD 🥶</span>
+        </div>
+      </div>
+      <div class="battle-track">
+        <div class="battle-fill-left" id="battleFillLeft" style="width: 50%;"></div>
+        <div class="battle-divider" id="battleDivider" style="left: 50%;"></div>
+        <div class="battle-fill-right" id="battleFillRight" style="width: 50%;"></div>
+      </div>
+    </div>
+
+    <!-- Arena Cards -->
+    <main class="arena" role="region" aria-label="Polling Options">
+      
+      <!-- Option 1: Fire Card -->
+      <article class="card fire-card" id="fireCard" tabindex="0" role="button" aria-label="Vote Fire">
+        <div class="leader-tag" id="fireLeaderTag">👑 LEADING</div>
+
+        <div class="emoji-wrapper">
+          <div class="emoji-aura"></div>
+          <div class="emoji" id="fireEmoji">🔥</div>
+        </div>
+
+        <div class="label-row">
+          <span class="key-hint">KEY 1</span>
+          <h2 class="label">Fire</h2>
+        </div>
+
+        <div class="counter-box">
+          <span class="counter" id="fireCount">0</span>
+          <span class="percentage-badge" id="firePctBadge">0%</span>
+        </div>
+
+        <div class="bar-container">
+          <div class="bar fire-bar" id="fireBar"></div>
+        </div>
+
+        <span class="tap-hint">Click or Press [1] to vote</span>
+      </article>
+
+      <!-- Option 2: Cold Card -->
+      <article class="card cold-card" id="coldCard" tabindex="0" role="button" aria-label="Vote Cold">
+        <div class="leader-tag" id="coldLeaderTag">👑 LEADING</div>
+
+        <div class="emoji-wrapper">
+          <div class="emoji-aura"></div>
+          <div class="emoji" id="coldEmoji">🥶</div>
+        </div>
+
+        <div class="label-row">
+          <span class="key-hint">KEY 2</span>
+          <h2 class="label">Cold Chill</h2>
+        </div>
+
+        <div class="counter-box">
+          <span class="counter" id="coldCount">0</span>
+          <span class="percentage-badge" id="coldPctBadge">0%</span>
+        </div>
+
+        <div class="bar-container">
+          <div class="bar cold-bar" id="coldBar"></div>
+        </div>
+
+        <span class="tap-hint">Click or Press [2] to vote</span>
+      </article>
+
+    </main>
+
+    <!-- Bottom Hardware Receiver Status Bar -->
+    <footer class="footer-bar" id="footerBar">
+      <div class="status-group">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Hardware receiver connecting...</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Settings Modal (Theme Studio, Sound, Demo Mode) -->
+  <div class="modal-overlay" id="settingsModalOverlay">
+    <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="settings-gear-icon">⚙️</span>
+          <h3 id="settingsModalTitle">Arena Settings</h3>
+        </div>
+        <button class="close-btn" id="closeSettingsModalBtn" aria-label="Close Settings">&times;</button>
+      </div>
+
+      <!-- Section 1: Live Controls (Sound & Demo) -->
+      <div class="settings-section">
+        <h4 class="section-title">Live Presentation Controls</h4>
+        <div class="settings-toggle-grid">
+          
+          <!-- Sound Toggle -->
+          <div class="setting-toggle-card">
+            <div class="setting-info">
+              <span class="setting-icon" id="soundIcon">🔊</span>
+              <div>
+                <div class="setting-name">Sound Effects</div>
+                <div class="setting-desc" id="soundStatusText">Web Audio pops & chimes active</div>
+              </div>
+            </div>
+            <button class="toggle-pill-btn active" id="soundToggleBtn">Sound ON</button>
+          </div>
+
+          <!-- Demo Simulation Toggle -->
+          <div class="setting-toggle-card">
+            <div class="setting-info">
+              <span class="setting-icon" id="demoIcon">⚡</span>
+              <div>
+                <div class="setting-name">Demo Mode Simulation</div>
+                <div class="setting-desc" id="demoStatusText">Simulates live crowd traffic</div>
+              </div>
+            </div>
+            <button class="toggle-pill-btn" id="demoToggleBtn">Start Demo</button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section 2: Theme Studio & Color Palettes -->
+      <div class="settings-section">
+        <h4 class="section-title">Theme Studio & Palettes</h4>
+        <p class="section-desc">Choose a vibrant preset or input your custom hex codes:</p>
+        
+        <div class="theme-presets-grid">
+          <div class="preset-card active" data-preset="offline-vybes">
+            <div class="preset-preview">
+              <div style="background: #b6ff00;"></div>
+              <div style="background: #ff3b00;"></div>
+              <div style="background: #00f0ff;"></div>
+              <div style="background: #110d1f;"></div>
+            </div>
+            <div class="preset-name">OFFLINE Vybes (Official)</div>
+          </div>
+
+          <div class="preset-card" data-preset="solar-glacial">
+            <div class="preset-preview">
+              <div style="background: #ff4500;"></div>
+              <div style="background: #ff8c00;"></div>
+              <div style="background: #00d2ff;"></div>
+              <div style="background: #7b2cbf;"></div>
+            </div>
+            <div class="preset-name">Solar Flare & Glacial</div>
+          </div>
+
+          <div class="preset-card" data-preset="cyber-neon">
+            <div class="preset-preview">
+              <div style="background: #ff007f;"></div>
+              <div style="background: #ff3399;"></div>
+              <div style="background: #00f3ff;"></div>
+              <div style="background: #0088ff;"></div>
+            </div>
+            <div class="preset-name">Cyber Neon</div>
+          </div>
+
+          <div class="preset-card" data-preset="radioactive-violet">
+            <div class="preset-preview">
+              <div style="background: #00ff88;"></div>
+              <div style="background: #10b981;"></div>
+              <div style="background: #a855f7;"></div>
+              <div style="background: #6366f1;"></div>
+            </div>
+            <div class="preset-name">Emerald & Amethyst</div>
+          </div>
+        </div>
+
+        <!-- Custom Color Pickers -->
+        <div class="custom-picker-section">
+          <div class="picker-row">
+            <span class="picker-label">Option 1 (Fire) Primary Color</span>
+            <div class="picker-controls">
+              <input type="color" class="color-input" id="fireColorPicker" value="#ff3b00">
+              <input type="text" class="hex-display" id="fireHexDisplay" value="#ff3b00" readonly>
+            </div>
+          </div>
+
+          <div class="picker-row">
+            <span class="picker-label">Option 2 (Cold) Primary Color</span>
+            <div class="picker-controls">
+              <input type="color" class="color-input" id="coldColorPicker" value="#00f0ff">
+              <input type="text" class="hex-display" id="coldHexDisplay" value="#00f0ff" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <button class="action-btn secondary" id="copyCssBtn">Copy CSS Variables</button>
+        <button class="action-btn primary" id="applyCustomThemeBtn">Apply Custom Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Message -->
+  <div class="toast" id="toastMessage">Arena Counts Reset to 0</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
