@@ -127,17 +127,60 @@
 
     </main>
 
-    <!-- Bottom Hardware Receiver Status Bar -->
-    <footer class="footer-bar" id="footerBar">
-      <div class="status-group">
-        <span class="status-dot" id="statusDot"></span>
-        <span class="status-text" id="statusText">Hardware receiver connecting...</span>
-      </div>
-    </footer>
-
   </div>
 
-  <!-- Settings Modal (Theme Studio, Sound, Demo Mode) -->
+  <!-- Admin Lock Gate Modal -->
+  <div class="modal-overlay" id="adminGateModalOverlay">
+    <div class="settings-modal admin-gate-modal" role="dialog" aria-modal="true" aria-labelledby="adminGateTitle">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="settings-gear-icon">🔒</span>
+          <h3 id="adminGateTitle">Admin Access Gate</h3>
+        </div>
+        <button class="close-btn" id="closeAdminGateModalBtn" aria-label="Close Admin Gate">&times;</button>
+      </div>
+
+      <div class="admin-gate-body">
+        <p class="admin-gate-desc">
+          Arena configuration, theme palettes, audio synthesis, and hardware receiver controls are protected by administrator credentials.
+        </p>
+
+        <form id="adminLoginForm" class="admin-login-form">
+          <div class="admin-form-group">
+            <label for="adminEmailInput" class="admin-label">Admin Email</label>
+            <input 
+              type="email" 
+              id="adminEmailInput" 
+              class="admin-input" 
+              placeholder="Enter admin email" 
+              autocomplete="email" 
+              required 
+            />
+          </div>
+
+          <div class="admin-form-group">
+            <label for="adminPassInput" class="admin-label">Admin Password</label>
+            <input 
+              type="password" 
+              id="adminPassInput" 
+              class="admin-input" 
+              placeholder="Enter admin password" 
+              autocomplete="current-password" 
+              required 
+            />
+          </div>
+
+          <div class="admin-error-msg" id="adminErrorMsg" style="display: none;"></div>
+
+          <button type="submit" class="action-btn primary admin-submit-btn" id="adminSubmitBtn">
+            <span>Unlock Settings</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Protected by Admin Gate) -->
   <div class="modal-overlay" id="settingsModalOverlay">
     <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
       <div class="modal-header">
@@ -145,7 +188,25 @@
           <span class="settings-gear-icon">⚙️</span>
           <h3 id="settingsModalTitle">Arena Settings</h3>
         </div>
-        <button class="close-btn" id="closeSettingsModalBtn" aria-label="Close Settings">&times;</button>
+        <div class="modal-header-actions">
+          <button class="lock-settings-btn" id="lockSettingsBtn" title="Lock Settings & Sign Out">🔒 Lock</button>
+          <button class="close-btn" id="closeSettingsModalBtn" aria-label="Close Settings">&times;</button>
+        </div>
+      </div>
+
+      <!-- Section: Hardware Receiver Connection Status (Moved from Frontend) -->
+      <div class="settings-section">
+        <h4 class="section-title">📡 Hardware Receiver Connection</h4>
+        <div class="setting-toggle-card hardware-status-card">
+          <div class="setting-info">
+            <span class="status-dot" id="statusDot"></span>
+            <div>
+              <div class="setting-name">WebSocket Hardware Bridge</div>
+              <div class="setting-desc" id="statusText">Hardware receiver connecting...</div>
+            </div>
+          </div>
+          <div class="hardware-url-note" id="hardwareUrlNote">ws://localhost:8080</div>
+        </div>
       </div>
 
       <!-- Section 1: Live Controls (Sound & Demo) -->

@@ -10,8 +10,24 @@ const state = {
   soundEnabled: true,
   demoMode: false,
   demoInterval: null,
-  audioCtx: null
+  audioCtx: null,
+  adminUnlocked: sessionStorage.getItem('offline_admin_auth') === 'unlocked'
 };
+
+// Cryptographic SHA-256 Hashes for Admin Gate (Protects raw credentials from public source code)
+const AUTH_HASHES = {
+  email: '9f0b8c2394440ca6d05d699b7f33e7a5cf01a175d73b737f45a38f3b46a581b5',
+  pass: '72cb0f23437311167f7a8823c98c12e7a8941c2b43256dc7db4eba8f03172f72'
+};
+
+async function computeSha256(str) {
+  const enc = new TextEncoder();
+  const data = enc.encode(str);
+  const hashBuf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 // DOM References
 const fireCountEl = document.getElementById('fireCount');
@@ -26,6 +42,7 @@ const fireLeaderTag = document.getElementById('fireLeaderTag');
 const coldLeaderTag = document.getElementById('coldLeaderTag');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
+const hardwareUrlNote = document.getElementById('hardwareUrlNote');
 
 // Momentum Duel Bar Elements
 const fireRatioText = document.getElementById('fireRatioText');
@@ -45,9 +62,19 @@ const fullscreenBtn = document.getElementById('fullscreenBtn');
 const resetBtn = document.getElementById('resetBtn');
 const toastMessage = document.getElementById('toastMessage');
 
+// Admin Lock Gate Modal References
+const adminGateModalOverlay = document.getElementById('adminGateModalOverlay');
+const closeAdminGateModalBtn = document.getElementById('closeAdminGateModalBtn');
+const adminLoginForm = document.getElementById('adminLoginForm');
+const adminEmailInput = document.getElementById('adminEmailInput');
+const adminPassInput = document.getElementById('adminPassInput');
+const adminErrorMsg = document.getElementById('adminErrorMsg');
+const adminSubmitBtn = document.getElementById('adminSubmitBtn');
+
 // Settings Modal References
 const settingsModalOverlay = document.getElementById('settingsModalOverlay');
 const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
+const lockSettingsBtn = document.getElementById('lockSettingsBtn');
 const soundToggleBtn = document.getElementById('soundToggleBtn');
 const soundIcon = document.getElementById('soundIcon');
 const soundStatusText = document.getElementById('soundStatusText');
@@ -433,8 +460,9 @@ function connectWebSocket() {
     ws = new WebSocket(targetUrl);
 
     ws.onopen = () => {
-      statusDot.classList.add('connected');
-      statusText.textContent = `Hardware receiver connected (${targetUrl})`;
+      if (statusDot) statusDot.classList.add('connected');
+      if (statusText) statusText.textContent = 'Hardware receiver connected';
+      if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
 
     ws.onmessage = (event) => {
@@ -457,18 +485,21 @@ function connectWebSocket() {
     };
 
     ws.onclose = () => {
-      statusDot.classList.remove('connected');
-      statusText.textContent = `Hardware receiver connecting (${targetUrl})...`;
+      if (statusDot) statusDot.classList.remove('connected');
+      if (statusText) statusText.textContent = 'Hardware receiver disconnected / reconnecting...';
+      if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
       reconnectTimer = setTimeout(connectWebSocket, 2500);
     };
 
     ws.onerror = () => {
-      statusDot.classList.remove('connected');
-      statusText.textContent = `Hardware receiver connecting (${targetUrl})...`;
+      if (statusDot) statusDot.classList.remove('connected');
+      if (statusText) statusText.textContent = 'Hardware bridge error';
+      if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
   } catch (err) {
-    statusDot.classList.remove('connected');
-    statusText.textContent = `Hardware receiver connecting (${targetUrl})...`;
+    if (statusDot) statusDot.classList.remove('connected');
+    if (statusText) statusText.textContent = 'Hardware bridge error';
+    if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     reconnectTimer = setTimeout(connectWebSocket, 2500);
   }
 }
@@ -494,27 +525,107 @@ function showToast(msg) {
 }
 
 /* -------------------------------------------------------------
- * 8. Settings Drawer (Theme Studio, Sound & Demo Simulation)
+ * 8. Settings Drawer & Admin Access Gate
  * ------------------------------------------------------------- */
+function openAdminGate() {
+  if (adminGateModalOverlay) {
+    adminGateModalOverlay.classList.add('active');
+    if (adminErrorMsg) adminErrorMsg.style.display = 'none';
+    if (adminEmailInput) {
+      setTimeout(() => adminEmailInput.focus(), 80);
+    }
+  }
+}
+
+function closeAdminGate() {
+  if (adminGateModalOverlay) adminGateModalOverlay.classList.remove('active');
+  if (adminErrorMsg) adminErrorMsg.style.display = 'none';
+}
+
 function openSettings() {
-  if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+  if (state.adminUnlocked) {
+    if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+  } else {
+    openAdminGate();
+  }
 }
 
 function closeSettings() {
   if (settingsModalOverlay) settingsModalOverlay.classList.remove('active');
+  closeAdminGate();
 }
 
 function toggleSettings() {
-  if (settingsModalOverlay) {
-    settingsModalOverlay.classList.toggle('active');
+  if (state.adminUnlocked) {
+    if (settingsModalOverlay) {
+      settingsModalOverlay.classList.toggle('active');
+    }
+  } else {
+    if (adminGateModalOverlay && adminGateModalOverlay.classList.contains('active')) {
+      closeAdminGate();
+    } else {
+      openAdminGate();
+    }
   }
+}
+
+function lockSettings() {
+  state.adminUnlocked = false;
+  sessionStorage.removeItem('offline_admin_auth');
+  closeSettings();
+  showToast('Settings Locked 🔒');
 }
 
 if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
 if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener('click', closeSettings);
+if (lockSettingsBtn) lockSettingsBtn.addEventListener('click', lockSettings);
+if (closeAdminGateModalBtn) closeAdminGateModalBtn.addEventListener('click', closeAdminGate);
+
+if (adminGateModalOverlay) {
+  adminGateModalOverlay.addEventListener('click', (e) => {
+    if (e.target === adminGateModalOverlay) closeAdminGate();
+  });
+}
+
 if (settingsModalOverlay) {
   settingsModalOverlay.addEventListener('click', (e) => {
     if (e.target === settingsModalOverlay) closeSettings();
+  });
+}
+
+// Admin Gate Form Submission
+if (adminLoginForm) {
+  adminLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (adminErrorMsg) adminErrorMsg.style.display = 'none';
+
+    const emailVal = (adminEmailInput ? adminEmailInput.value : '').trim().toLowerCase();
+    const passVal = (adminPassInput ? adminPassInput.value : '').trim();
+
+    try {
+      const emailHash = await computeSha256(emailVal);
+      const passHash = await computeSha256(passVal);
+
+      if (emailHash === AUTH_HASHES.email && passHash === AUTH_HASHES.pass) {
+        state.adminUnlocked = true;
+        sessionStorage.setItem('offline_admin_auth', 'unlocked');
+        if (adminPassInput) adminPassInput.value = '';
+        closeAdminGate();
+        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+        showToast('Admin Authenticated 🔓');
+      } else {
+        if (adminErrorMsg) {
+          adminErrorMsg.textContent = 'Invalid administrator email or password.';
+          adminErrorMsg.style.display = 'block';
+        }
+      }
+    } catch (err) {
+      console.error('Authentication verification error:', err);
+      if (adminErrorMsg) {
+        adminErrorMsg.textContent = 'Authentication error. Please try again.';
+        adminErrorMsg.style.display = 'block';
+      }
+    }
   });
 }
 

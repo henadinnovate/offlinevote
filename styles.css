@@ -827,6 +827,121 @@ html, body {
   transform: scale(1.08);
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.lock-settings-btn {
+  background: rgba(255, 69, 0, 0.12);
+  border: 1px solid rgba(255, 69, 0, 0.28);
+  color: #ff8855;
+  font-family: var(--font-label);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.lock-settings-btn:hover {
+  background: rgba(255, 69, 0, 0.25);
+  border-color: rgba(255, 69, 0, 0.55);
+  color: #fff;
+  transform: scale(1.03);
+}
+
+/* Admin Gate Modal Specifics */
+.admin-gate-modal {
+  max-width: 440px;
+}
+
+.admin-gate-desc {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-bottom: 1.4rem;
+}
+
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.admin-label {
+  font-family: var(--font-label);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-lime);
+}
+
+.admin-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-main);
+  font-size: 0.95rem;
+  color: #fff;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.admin-input:focus {
+  border-color: var(--brand-lime);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 16px rgba(182, 255, 0, 0.25);
+}
+
+.admin-input::placeholder {
+  color: var(--text-dim);
+}
+
+.admin-error-msg {
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid rgba(255, 0, 85, 0.35);
+  color: #ff6688;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+}
+
+.admin-submit-btn {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.hardware-status-card {
+  margin-top: 0.3rem;
+}
+
+.hardware-url-note {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  word-break: break-all;
+}
+
 .settings-section {
   margin-bottom: 1.8rem;
 }
