@@ -359,6 +359,15 @@ function updateUI(newData, triggeredOption = null) {
  * 5. Direct Voting & Handlers
  * ------------------------------------------------------------- */
 function castVote(option) {
+  // Mobile tactile haptic feedback
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate(25);
+    } catch (e) {
+      // Haptics optional or blocked by user agent
+    }
+  }
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'VOTE', option }));
   } else {
