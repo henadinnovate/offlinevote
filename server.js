@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const tls = require('tls');
 const { WebSocketServer } = require('ws');
 const readline = require('readline');
+const { execFile } = require('child_process');
 
 // Load private .env if present (never committed to git)
 const envPath = path.join(__dirname, '.env');
@@ -637,7 +638,14 @@ const server = http.createServer(async (req, res) => {
 
   // REST API: /api/stats
   if (pathname === '/api/stats') {
-    sendJson(res, 200, arenaState);
+    sendJson(res, 200, { ...arenaState, usb: usbHardwareState });
+    return;
+  }
+
+  // REST API: /api/usb (Inspect & refresh connected USB devices & serial ports)
+  if (pathname === '/api/usb') {
+    await scanUsbDevices();
+    sendJson(res, 200, usbHardwareState);
     return;
   }
 
@@ -666,15 +674,143 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-// Attach WebSocket Server
+// Attach WebSocket Server & USB Hardware Bridge
 const wss = new WebSocketServer({ server });
 
-function broadcastUpdate() {
+const usbHardwareState = {
+  connected: false,
+  devices: [],
+  serialPorts: [],
+  activeSerialPort: null,
+  lastScanAt: null
+};
+
+let activeSerialStream = null;
+
+function processHardwareToken(rawToken) {
+  const token = String(rawToken || '').trim().toLowerCase();
+  if (!token) return;
+  if (arenaState.protection.lockVoting) return;
+
+  if (token === '1' || token === 'fire' || token === 'a' || token === 'vote:fire' || token === 'btn1') {
+    arenaState.fire++;
+    persistVotesToDb();
+    broadcastUpdate('fire');
+  } else if (token === '2' || token === 'cold' || token === 'b' || token === 'vote:cold' || token === 'btn2') {
+    arenaState.cold++;
+    persistVotesToDb();
+    broadcastUpdate('cold');
+  } else if (token === 'r' || token === 'reset') {
+    if (!arenaState.protection.protectReset) {
+      arenaState.fire = 0;
+      arenaState.cold = 0;
+      persistVotesToDb();
+      broadcastUpdate();
+    }
+  }
+}
+
+function attachUsbSerialPort(portPath) {
+  if (!portPath || usbHardwareState.activeSerialPort === portPath) return;
+  try {
+    if (activeSerialStream) {
+      try { activeSerialStream.destroy(); } catch (_) {}
+      activeSerialStream = null;
+    }
+    const stream = fs.createReadStream(portPath, { encoding: 'utf8' });
+    activeSerialStream = stream;
+    usbHardwareState.activeSerialPort = portPath;
+
+    let buffer = '';
+    stream.on('data', (chunk) => {
+      buffer += chunk;
+      const lines = buffer.split(/[\r\n,;\s]+/);
+      buffer = lines.pop() || '';
+      lines.forEach((t) => processHardwareToken(t));
+      if (buffer === '1' || buffer === '2') {
+        processHardwareToken(buffer);
+        buffer = '';
+      }
+    });
+
+    stream.on('error', () => {
+      usbHardwareState.activeSerialPort = null;
+      activeSerialStream = null;
+    });
+
+    stream.on('close', () => {
+      usbHardwareState.activeSerialPort = null;
+      activeSerialStream = null;
+    });
+  } catch (_) {
+    usbHardwareState.activeSerialPort = null;
+  }
+}
+
+function scanUsbDevices() {
+  return new Promise((resolve) => {
+    // 1. Discover USB Serial device nodes (/dev/cu.usb*, /dev/ttyUSB*, /dev/ttyACM*)
+    let serialPorts = [];
+    try {
+      const devEntries = fs.readdirSync('/dev');
+      serialPorts = devEntries
+        .filter((name) =>
+          /^cu\.(usbserial|usbmodem|wchusbserial|SLAB_USBtoUART)/i.test(name) ||
+          /^tty(USB|ACM)\d+/i.test(name)
+        )
+        .map((name) => `/dev/${name}`);
+    } catch (_) {}
+
+    usbHardwareState.serialPorts = serialPorts;
+    if (serialPorts.length > 0 && !usbHardwareState.activeSerialPort) {
+      attachUsbSerialPort(serialPorts[0]);
+    }
+
+    // 2. Discover attached USB HID / Receiver devices via ioreg on macOS
+    if (process.platform === 'darwin') {
+      execFile('ioreg', ['-p', 'IOUSB', '-l', '-w', '0'], { timeout: 1800 }, (err, stdout) => {
+        const names = new Set();
+        if (!err && stdout) {
+          const regex = /"(?:USB Product Name|kUSBProductString)"\s*=\s*"([^"]+)"/g;
+          let match;
+          while ((match = regex.exec(stdout)) !== null) {
+            const prod = match[1].trim();
+            if (prod && !/hub|billboard|host controller|root|storage|asm225|mass storage/i.test(prod)) {
+              names.add(prod);
+            }
+          }
+        }
+        const prevConnected = usbHardwareState.connected;
+        const prevCount = usbHardwareState.devices.length;
+        usbHardwareState.devices = Array.from(names);
+        usbHardwareState.connected = usbHardwareState.devices.length > 0 || serialPorts.length > 0;
+        usbHardwareState.lastScanAt = new Date().toISOString();
+
+        if (prevConnected !== usbHardwareState.connected || prevCount !== usbHardwareState.devices.length) {
+          broadcastUpdate();
+        }
+        resolve(usbHardwareState);
+      });
+    } else {
+      usbHardwareState.devices = serialPorts.slice();
+      usbHardwareState.connected = serialPorts.length > 0;
+      usbHardwareState.lastScanAt = new Date().toISOString();
+      resolve(usbHardwareState);
+    }
+  });
+}
+
+scanUsbDevices();
+setInterval(scanUsbDevices, 5000);
+
+function broadcastUpdate(triggeredOption = null) {
   const payload = JSON.stringify({
     type: 'UPDATE',
+    triggeredOption,
     data: {
       fire: arenaState.fire,
       cold: arenaState.cold,
+      usb: usbHardwareState,
       protection: {
         ...arenaState.protection,
         votingLocked: arenaState.protection.lockVoting
@@ -695,6 +831,7 @@ wss.on('connection', (ws) => {
     data: {
       fire: arenaState.fire,
       cold: arenaState.cold,
+      usb: usbHardwareState,
       protection: {
         ...arenaState.protection,
         votingLocked: arenaState.protection.lockVoting

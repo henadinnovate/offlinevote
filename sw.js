@@ -1,9 +1,10 @@
 /**
  * OFFLINE Live Arena — Service Worker (PWA App Shell Cache)
  */
-const CACHE_NAME = 'offline-live-arena-v2';
+const CACHE_NAME = 'offline-live-arena-v3';
 const APP_SHELL = [
   '/',
+  '/admin',
   '/index.html',
   '/base.css',
   '/tokens.css',
@@ -46,3 +47,4 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(req).then((cached) => cached || caches.match('/index.html')))
   );
 });
+

@@ -111,6 +111,10 @@ const toastMessage = document.getElementById('toastMessage');
 const totalVotesCount = document.getElementById('totalVotesCount');
 const liveVotingDot = document.getElementById('liveVotingDot');
 const liveVotingLabel = document.getElementById('liveVotingLabel');
+const usbStatusDot = document.getElementById('usbStatusDot');
+const usbStatusLabel = document.getElementById('usbStatusLabel');
+const usbDeviceDesc = document.getElementById('usbDeviceDesc');
+const connectUsbBtn = document.getElementById('connectUsbBtn');
 
 // Admin Lock Gate Modal References
 const adminGateModalOverlay = document.getElementById('adminGateModalOverlay');
@@ -391,6 +395,37 @@ function updateProtectionUI() {
   }
 }
 
+function updateUsbUI(usbInfo) {
+  if (!usbInfo) return;
+  state.usb = usbInfo;
+  const devices = Array.isArray(usbInfo.devices) ? usbInfo.devices : [];
+  const serialPorts = Array.isArray(usbInfo.serialPorts) ? usbInfo.serialPorts : [];
+  const hasUsb = Boolean(usbInfo.connected || devices.length > 0 || serialPorts.length > 0 || state.directUsbConnected);
+
+  if (usbStatusDot) {
+    usbStatusDot.classList.toggle('locked', !hasUsb);
+  }
+  if (usbStatusLabel) {
+    if (usbInfo.activeSerialPort) {
+      usbStatusLabel.textContent = `USB Serial (${usbInfo.activeSerialPort.replace('/dev/', '')})`;
+    } else if (devices.length > 0) {
+      usbStatusLabel.textContent = `USB: ${devices[0]}`;
+    } else if (state.directUsbName) {
+      usbStatusLabel.textContent = `USB: ${state.directUsbName}`;
+    } else {
+      usbStatusLabel.textContent = 'USB Ready';
+    }
+  }
+  if (usbDeviceDesc) {
+    if (devices.length > 0 || serialPorts.length > 0) {
+      const summary = [...devices, ...serialPorts].join(' · ');
+      usbDeviceDesc.textContent = `Connected USB: ${summary}`;
+    } else if (state.directUsbName) {
+      usbDeviceDesc.textContent = `Connected Direct USB: ${state.directUsbName}`;
+    }
+  }
+}
+
 function updateUI(newData, triggeredOption = null) {
   const prevFire = state.fire;
   const prevCold = state.cold;
@@ -401,6 +436,9 @@ function updateUI(newData, triggeredOption = null) {
   if (newData.protection) {
     state.protection = { ...state.protection, ...newData.protection };
     updateProtectionUI();
+  }
+  if (newData.usb) {
+    updateUsbUI(newData.usb);
   }
 
   const total = state.fire + state.cold;
@@ -592,15 +630,25 @@ async function resetArena() {
 fireCard.addEventListener('click', () => castVote('fire'));
 coldCard.addEventListener('click', () => castVote('cold'));
 
-// Keyboard navigation & Keypad [1] and [2]
+// USB HID Keypad, 2.4G RF Receiver & Presentation Remote Listener (with repeat debounce)
+const FIRE_USB_KEYS = new Set(['1', 'a', 'A', 'ArrowLeft', 'PageUp']);
+const COLD_USB_KEYS = new Set(['2', 'b', 'B', 'ArrowRight', 'PageDown']);
+
 window.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.repeat) return; // Prevent held USB button from flooding duplicate votes
 
-  if (e.key === '1' || e.code === 'Numpad1') {
+  if (FIRE_USB_KEYS.has(e.key) || e.code === 'Numpad1' || e.code === 'Digit1') {
     e.preventDefault();
+    if (usbStatusLabel && (!state.usb || !state.usb.devices || state.usb.devices.length === 0)) {
+      usbStatusLabel.textContent = 'USB Keypad Active';
+    }
     castVote('fire');
-  } else if (e.key === '2' || e.code === 'Numpad2') {
+  } else if (COLD_USB_KEYS.has(e.key) || e.code === 'Numpad2' || e.code === 'Digit2') {
     e.preventDefault();
+    if (usbStatusLabel && (!state.usb || !state.usb.devices || state.usb.devices.length === 0)) {
+      usbStatusLabel.textContent = 'USB Keypad Active';
+    }
     castVote('cold');
   } else if ((e.key === 'r' || e.key === 'R') && (state.isAdminRoute || state.adminUnlocked)) {
     e.preventDefault();
@@ -620,10 +668,12 @@ window.addEventListener('keydown', (e) => {
 });
 
 /* -------------------------------------------------------------
- * 6. WebSocket Hardware Bridge & Server State Sync
+ * 6. WebSocket Hardware Bridge & Direct USB (WebHID / WebSerial / Gamepad)
  * ------------------------------------------------------------- */
+let useLocalBridgeFallback = false;
+
 function getWebSocketUrl() {
-  if (window.location.protocol === 'file:') {
+  if (window.location.protocol === 'file:' || useLocalBridgeFallback) {
     return 'ws://localhost:8080';
   }
   const isSecure = window.location.protocol === 'https:';
@@ -641,7 +691,7 @@ function connectWebSocket() {
 
     ws.onopen = () => {
       if (statusDot) statusDot.classList.add('connected');
-      if (statusText) statusText.textContent = 'Hardware receiver connected';
+      if (statusText) statusText.textContent = 'USB & Hardware Bridge Connected';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
 
@@ -649,7 +699,7 @@ function connectWebSocket() {
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'UPDATE' && payload.data) {
-          updateUI(payload.data);
+          updateUI(payload.data, payload.triggeredOption || null);
         } else if (payload.type === 'PROTECTION' && payload.data) {
           state.protection = { ...state.protection, ...payload.data };
           updateProtectionUI();
@@ -674,22 +724,188 @@ function connectWebSocket() {
 
     ws.onclose = () => {
       if (statusDot) statusDot.classList.remove('connected');
-      if (statusText) statusText.textContent = 'Offline / local controller mode';
+      // If hosted on cloud static origin (e.g. offlinevote.falhen.com), fall back to local USB bridge ws://localhost:8080
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !useLocalBridgeFallback) {
+        useLocalBridgeFallback = true;
+        reconnectTimer = setTimeout(connectWebSocket, 400);
+        return;
+      }
+      if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
-      reconnectTimer = setTimeout(connectWebSocket, 2500);
+      reconnectTimer = setTimeout(connectWebSocket, 3000);
     };
 
     ws.onerror = () => {
       if (statusDot) statusDot.classList.remove('connected');
-      if (statusText) statusText.textContent = 'Offline / local controller mode';
+      if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
   } catch (err) {
     if (statusDot) statusDot.classList.remove('connected');
-    if (statusText) statusText.textContent = 'Offline / local controller mode';
+    if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
     if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
-    reconnectTimer = setTimeout(connectWebSocket, 2500);
+    reconnectTimer = setTimeout(connectWebSocket, 3000);
   }
+}
+
+// Direct Browser WebHID & WebSerial USB Pairing
+async function attachWebHidDevice(device) {
+  if (!device) return;
+  try {
+    if (!device.opened) {
+      await device.open();
+    }
+    state.directUsbConnected = true;
+    state.directUsbName = device.productName || 'USB HID Keypad';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    if (connectUsbBtn) {
+      connectUsbBtn.classList.add('active');
+      connectUsbBtn.textContent = 'USB Paired';
+    }
+
+    device.oninputreport = (event) => {
+      const bytes = new Uint8Array(event.data.buffer);
+      // Standard HID Usage IDs: 0x1E (1), 0x59 (Keypad 1), 0x04 (A) -> Fire; 0x1F (2), 0x5A (Keypad 2), 0x05 (B) -> Cold
+      for (let i = 0; i < bytes.length; i++) {
+        const code = bytes[i];
+        if (code === 0x1e || code === 0x59 || code === 0x04) {
+          castVote('fire');
+          break;
+        } else if (code === 0x1f || code === 0x5a || code === 0x05) {
+          castVote('cold');
+          break;
+        }
+      }
+    };
+  } catch (_) {
+    // System keyboard HID devices are already handled natively via keydown listener
+  }
+}
+
+async function attachWebSerialPort(port) {
+  if (!port) return;
+  try {
+    await port.open({ baudRate: 9600 });
+    state.directUsbConnected = true;
+    state.directUsbName = 'USB Serial Receiver';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    if (connectUsbBtn) {
+      connectUsbBtn.classList.add('active');
+      connectUsbBtn.textContent = 'USB Paired';
+    }
+
+    const decoder = new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable).catch(() => {});
+    const reader = decoder.readable.getReader();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        buffer += value;
+        const parts = buffer.split(/[\r\n,;\s]+/);
+        buffer = parts.pop() || '';
+        for (const p of parts) {
+          const clean = p.trim().toLowerCase();
+          if (clean === '1' || clean === 'fire' || clean === 'a') castVote('fire');
+          if (clean === '2' || clean === 'cold' || clean === 'b') castVote('cold');
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+async function connectUsbDeviceInteractive() {
+  // 1. Refresh server-side USB hardware scan first if running on Node bridge
+  try {
+    if (window.location.protocol !== 'file:') {
+      const res = await fetch('/api/usb');
+      if (res.ok) {
+        const usbData = await res.json();
+        updateUsbUI(usbData);
+        if (usbData.connected && usbData.devices && usbData.devices.length > 0) {
+          showToast(`USB Active: ${usbData.devices.join(', ')}`);
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. Offer Browser WebHID or WebSerial pairing for direct USB receivers
+  try {
+    if ('serial' in navigator) {
+      const port = await navigator.serial.requestPort();
+      await attachWebSerialPort(port);
+      showToast('USB Serial Receiver Connected');
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    if ('hid' in navigator) {
+      const devices = await navigator.hid.requestDevice({ filters: [] });
+      if (devices && devices.length > 0) {
+        await attachWebHidDevice(devices[0]);
+        showToast(`Connected: ${devices[0].productName || 'USB HID Device'}`);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  showToast('USB HID Keypad & RF Receiver Listener Active');
+}
+
+if (connectUsbBtn) {
+  connectUsbBtn.addEventListener('click', connectUsbDeviceInteractive);
+}
+
+// Auto-reconnect previously authorized WebHID / WebSerial devices & USB Gamepads
+async function initDirectUsbHardware() {
+  if ('hid' in navigator) {
+    try {
+      const devices = await navigator.hid.getDevices();
+      devices.forEach((d) => attachWebHidDevice(d));
+      navigator.hid.addEventListener('connect', (e) => {
+        attachWebHidDevice(e.device);
+        showToast(`USB Connected: ${e.device.productName || 'HID Keypad'}`);
+      });
+      navigator.hid.addEventListener('disconnect', () => {
+        showToast('USB Device Disconnected');
+      });
+    } catch (_) {}
+  }
+
+  if ('serial' in navigator) {
+    try {
+      const ports = await navigator.serial.getPorts();
+      if (ports.length > 0) attachWebSerialPort(ports[0]);
+    } catch (_) {}
+  }
+
+  // USB Gamepad / USB Button-Box Controller Polling
+  const prevButtons = {};
+  function pollGamepads() {
+    if ('getGamepads' in navigator) {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < pads.length; i++) {
+        const pad = pads[i];
+        if (!pad) continue;
+        const b0 = Boolean(pad.buttons[0] && pad.buttons[0].pressed);
+        const b1 = Boolean(pad.buttons[1] && pad.buttons[1].pressed);
+        const prev = prevButtons[pad.index] || { b0: false, b1: false };
+        if (b0 && !prev.b0) castVote('fire');
+        if (b1 && !prev.b1) castVote('cold');
+        prevButtons[pad.index] = { b0, b1 };
+      }
+    }
+    requestAnimationFrame(pollGamepads);
+  }
+  window.addEventListener('gamepadconnected', (e) => {
+    state.directUsbConnected = true;
+    state.directUsbName = e.gamepad.id || 'USB Controller';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    showToast(`USB Controller Connected`);
+  });
+  requestAnimationFrame(pollGamepads);
 }
 
 async function syncServerSessionAndProtection() {
@@ -1187,6 +1403,7 @@ if (state.isAdminRoute) {
   }
 }
 connectWebSocket();
+initDirectUsbHardware();
 syncServerSessionAndProtection();
 updateUI({ fire: 0, cold: 0 });
 updateProtectionUI();

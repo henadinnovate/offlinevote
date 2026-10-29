@@ -45,6 +45,10 @@
           <span class="telemetry-key">Votes</span>
           <strong class="telemetry-val" id="totalVotesCount">0</strong>
         </span>
+        <span class="telemetry-pill usb-telemetry-pill" id="usbStatusPill" title="USB Keypad / RF Receiver Status">
+          <span class="telemetry-dot" id="usbStatusDot"></span>
+          <span id="usbStatusLabel">USB Ready</span>
+        </span>
         <span class="telemetry-pill admin-route-badge admin-only-control" id="adminRouteBadge">
           ADMIN MODE (/admin)
         </span>
@@ -351,18 +355,23 @@
           </div>
         </div>
 
-        <!-- Section 3: Hardware Keypad Bridge -->
+        <!-- Section 3: USB & Hardware Keypad Bridge -->
         <div class="settings-section">
-          <h4 class="section-title">Hardware Keypad Bridge</h4>
+          <h4 class="section-title">USB &amp; Hardware Keypad Bridge</h4>
           <div class="setting-toggle-card hardware-status-card">
             <div class="setting-info">
               <span class="status-dot" id="statusDot"></span>
               <div>
                 <div class="setting-name" id="statusText">Connecting to receiver...</div>
-                <div class="setting-desc">Supports USB/RF Keypads &amp; WebSocket Bridge</div>
+                <div class="setting-desc" id="usbDeviceDesc">Supports USB Keypads, 2.4G RF Receivers, WebHID, WebSerial &amp; Bridge</div>
               </div>
             </div>
-            <code class="hardware-url-note" id="hardwareUrlNote">ws://localhost:8080</code>
+            <div class="mail-card-actions">
+              <code class="hardware-url-note" id="hardwareUrlNote">ws://localhost:8080</code>
+              <button class="toggle-pill-btn" id="connectUsbBtn" type="button" title="Pair USB HID Keypad or USB Serial Receiver">
+                Connect USB
+              </button>
+            </div>
           </div>
         </div>
 
