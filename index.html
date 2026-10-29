@@ -1,131 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="js">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="Ultra-vibrant real-time live audience polling arena with hardware keypad bridge and interactive sentiment analytics.">
-  <title>Live Polling Arena — Real-Time Sentiment Duel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Real-time stage sentiment duel and audience polling console with hardware keypad bridge and mobile controller.">
+  <title>Offline Live Arena, Real-Time Stage Sentiment Duel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- Ambient Dynamic Stage Lighting -->
-  <div class="ambient-stage">
+  <!-- Ambient Stage Surface -->
+  <div class="ambient-stage" aria-hidden="true">
     <div class="ambient-orb ambient-orb-fire" id="ambientFireOrb"></div>
     <div class="ambient-orb ambient-orb-cold" id="ambientColdOrb"></div>
-    <div class="ambient-grid"></div>
   </div>
 
   <!-- Realtime Particle Burst FX Canvas -->
-  <canvas id="particleCanvas"></canvas>
+  <canvas id="particleCanvas" aria-hidden="true"></canvas>
 
   <div class="app-container">
-    
-    <!-- Top Utility Bar (Clean Presentation Mode with Settings) -->
-    <header class="top-toolbar">
-      <div class="control-pills">
-        <button class="pill-btn icon-only" id="settingsBtn" title="Arena Settings (Theme, Sound, Demo) (Shortcut: S)">
-          <span>⚙️</span>
+
+    <!-- Top Machined Command Bar (Desktop Stage Shell & Mobile Bar) -->
+    <header class="top-toolbar" role="banner">
+      <div class="shell-brand">
+        <img src="assets/offline-logo.jpg" alt="Offline Live Arena emblem" width="44" height="44" class="brand-logo-img" id="brandLogo" fetchpriority="high">
+        <div class="shell-title-group">
+          <h1 id="arenaTitle">Offline Live Arena</h1>
+          <p class="brand-tagline">Less scrolling, more vibes. Live stage duel.</p>
+        </div>
+      </div>
+
+      <div class="shell-telemetry" role="status" aria-live="polite">
+        <div class="telemetry-chip">
+          <span class="telemetry-label">Total votes</span>
+          <span class="telemetry-value num" id="totalVotesCount">0</span>
+        </div>
+        <div class="telemetry-chip" id="votingStatusChip">
+          <span class="telemetry-dot" id="liveVotingDot" aria-hidden="true"></span>
+          <span class="telemetry-label" id="liveVotingLabel">Voting open</span>
+        </div>
+      </div>
+
+      <div class="control-pills" role="toolbar" aria-label="Stage and display controls">
+        <button type="button" class="pill-btn" id="projectionBtn" title="Toggle Stage Projection Mode (Shortcut: P)" aria-pressed="false">
+          <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <rect x="2.5" y="3.5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M7 16.5H13M10 13.5V16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="pill-label">Projection</span>
         </button>
-        <button class="pill-btn icon-only" id="fullscreenBtn" title="Toggle Fullscreen (Shortcut: F)">
-          <span>⛶</span>
+
+        <button type="button" class="pill-btn icon-only" id="fullscreenBtn" title="Toggle Fullscreen (Shortcut: F)" aria-label="Toggle fullscreen">
+          <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M3.5 7.5V4.5C3.5 3.94772 3.94772 3.5 4.5 3.5H7.5M12.5 3.5H15.5C16.0523 3.5 16.5 3.94772 16.5 4.5V7.5M16.5 12.5V15.5C16.5 16.0523 16.0523 16.5 15.5 16.5H12.5M7.5 16.5H4.5C3.94772 16.5 3.5 16.0523 3.5 15.5V12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
         </button>
-        <button class="pill-btn icon-only" id="resetBtn" title="Reset Counts (Shortcut: R)">
-          <span>↺</span>
+
+        <button type="button" class="pill-btn icon-only" id="resetBtn" title="Reset Arena Counts (Shortcut: R)" aria-label="Reset arena counts">
+          <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M4.5 10C4.5 6.96243 6.96243 4.5 10 4.5C12.14 4.5 13.994 5.724 14.896 7.5M15.5 4.5V7.5H12.5M15.5 10C15.5 13.0376 13.0376 15.5 10 15.5C7.86 15.5 6.006 14.276 5.104 12.5M4.5 15.5V12.5H7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <button type="button" class="pill-btn" id="settingsBtn" title="Arena Settings and Admin Protection (Shortcut: S)" aria-label="Open arena settings">
+          <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M10 2.75V4.5M10 15.5V17.25M2.75 10H4.5M15.5 10H17.25M4.87 4.87L6.1 6.1M13.9 13.9L15.13 15.13M15.13 4.87L13.9 6.1M6.1 13.9L4.87 15.13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="pill-label">Admin</span>
         </button>
       </div>
     </header>
 
-    <!-- Header Section with OFFLINE Logo & Headline -->
-    <section class="header">
-      <div class="brand-logo-container">
-        <img src="assets/offline-logo.jpg" alt="OFFLINE - Less Scrolling.. More Vibes" class="brand-logo-img" id="brandLogo">
-      </div>
-      <h1 id="arenaTitle">OFFLINE LIVE ARENA</h1>
-      <p class="brand-tagline">LESS SCROLLING.. MORE VIBES</p>
-      <p class="header-subtitle">
-        Vote using your keypad: 
-        <span class="keypad-badge">1</span> Fire 🔥 &nbsp;|&nbsp; 
-        <span class="keypad-badge">2</span> Cold Chill 🥶
-      </p>
-    </section>
-
-    <!-- Duel Ratio Momentum Bar -->
-    <div class="battle-meter-wrapper" id="battleMeter">
+    <!-- Machined Momentum Tug-of-War Meter -->
+    <section class="battle-meter-wrapper" id="battleMeter" aria-label="Live duel momentum">
       <div class="battle-meta">
         <div class="battle-score-left">
-          <span>🔥 FIRE</span>
-          <span id="fireRatioText">50%</span>
+          <span class="battle-side-name">Fire</span>
+          <span class="num" id="fireRatioText">50%</span>
         </div>
-        <div class="battle-duel-pill" id="leadPill">DUEL TIED</div>
+        <div class="battle-duel-pill num" id="leadPill" role="status">Duel tied</div>
         <div class="battle-score-right">
-          <span id="coldRatioText">50%</span>
-          <span>COLD 🥶</span>
+          <span class="num" id="coldRatioText">50%</span>
+          <span class="battle-side-name">Cold chill</span>
         </div>
       </div>
       <div class="battle-track">
-        <div class="battle-fill-left" id="battleFillLeft" style="width: 50%;"></div>
-        <div class="battle-divider" id="battleDivider" style="left: 50%;"></div>
-        <div class="battle-fill-right" id="battleFillRight" style="width: 50%;"></div>
+        <div class="battle-fill-left" id="battleFillLeft"></div>
+        <div class="battle-divider" id="battleDivider"></div>
+        <div class="battle-fill-right" id="battleFillRight"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- Arena Cards -->
-    <main class="arena" role="region" aria-label="Polling Options">
-      
+    <!-- Main Stage Duel Arena (Desktop Projection & Mobile Split Touch Pads) -->
+    <main class="arena" role="region" aria-label="Audience polling options">
+
       <!-- Option 1: Fire Card -->
-      <article class="card fire-card" id="fireCard" tabindex="0" role="button" aria-label="Vote Fire">
-        <div class="leader-tag" id="fireLeaderTag">👑 LEADING</div>
-
-        <div class="emoji-wrapper">
-          <div class="emoji-aura"></div>
-          <div class="emoji" id="fireEmoji">🔥</div>
-        </div>
-
-        <div class="label-row">
-          <span class="key-hint">KEY 1</span>
+      <article class="card fire-card" id="fireCard" tabindex="0" role="button" aria-label="Vote Fire, shortcut key 1">
+        <div class="card-top-row">
           <h2 class="label">Fire</h2>
+          <div class="leader-tag" id="fireLeaderTag">
+            <svg class="leader-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.5 12.5H13.5M3 10.5L2 5L6 7.5L8 3.5L10 7.5L14 5L13 10.5H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+            <span>Leading</span>
+          </div>
         </div>
 
-        <div class="counter-box">
-          <span class="counter" id="fireCount">0</span>
-          <span class="percentage-badge" id="firePctBadge">0%</span>
+        <div class="card-center-stage">
+          <div class="emoji-wrapper">
+            <div class="emoji-aura" aria-hidden="true"></div>
+            <div class="emoji" id="fireEmoji" aria-hidden="true">
+              <svg class="duel-emblem" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <path d="M33.5 6C33.5 6 48 18.2 48 34.5C48 45.8 39.4 55 28.5 55C18.8 55 12 47.4 12 37.5C12 29.2 17.5 22.4 21.2 19.2C21.2 19.2 19.8 25.5 24.5 27.5C22.4 20.2 26.8 11.4 33.5 6Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M30.5 28.5C30.5 28.5 38.5 34.2 38.5 42C38.5 47.8 34.2 52 29 52C24.2 52 21 48.2 21 43.2C21 38.4 25.5 33.8 30.5 28.5Z" fill="currentColor"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="counter-box">
+            <span class="counter num" id="fireCount">0</span>
+            <span class="percentage-badge num" id="firePctBadge">0%</span>
+          </div>
         </div>
 
-        <div class="bar-container">
-          <div class="bar fire-bar" id="fireBar"></div>
+        <div class="card-bottom-row">
+          <div class="bar-container" aria-hidden="true">
+            <div class="bar fire-bar" id="fireBar"></div>
+          </div>
+          <div class="card-action-meta">
+            <span class="tap-hint">Tap pad or press key</span>
+            <span class="keypad-badge num">Key 1</span>
+          </div>
         </div>
-
-        <span class="tap-hint">Click or Press [1] to vote</span>
       </article>
 
       <!-- Option 2: Cold Card -->
-      <article class="card cold-card" id="coldCard" tabindex="0" role="button" aria-label="Vote Cold">
-        <div class="leader-tag" id="coldLeaderTag">👑 LEADING</div>
-
-        <div class="emoji-wrapper">
-          <div class="emoji-aura"></div>
-          <div class="emoji" id="coldEmoji">🥶</div>
+      <article class="card cold-card" id="coldCard" tabindex="0" role="button" aria-label="Vote Cold chill, shortcut key 2">
+        <div class="card-top-row">
+          <h2 class="label">Cold chill</h2>
+          <div class="leader-tag" id="coldLeaderTag">
+            <svg class="leader-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.5 12.5H13.5M3 10.5L2 5L6 7.5L8 3.5L10 7.5L14 5L13 10.5H3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            </svg>
+            <span>Leading</span>
+          </div>
         </div>
 
-        <div class="label-row">
-          <span class="key-hint">KEY 2</span>
-          <h2 class="label">Cold Chill</h2>
+        <div class="card-center-stage">
+          <div class="emoji-wrapper">
+            <div class="emoji-aura" aria-hidden="true"></div>
+            <div class="emoji" id="coldEmoji" aria-hidden="true">
+              <svg class="duel-emblem" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <path d="M32 8V56M11.2 20L52.8 44M52.8 20L11.2 44" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M25 13L32 19L39 13M25 51L32 45L39 51M13 28L20 25L18 17M51 36L44 39L46 47M46 17L44 25L51 28M18 47L20 39L13 36" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="32,23 39.8,27.5 39.8,36.5 32,41 24.2,36.5 24.2,27.5" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="counter-box">
+            <span class="counter num" id="coldCount">0</span>
+            <span class="percentage-badge num" id="coldPctBadge">0%</span>
+          </div>
         </div>
 
-        <div class="counter-box">
-          <span class="counter" id="coldCount">0</span>
-          <span class="percentage-badge" id="coldPctBadge">0%</span>
+        <div class="card-bottom-row">
+          <div class="bar-container" aria-hidden="true">
+            <div class="bar cold-bar" id="coldBar"></div>
+          </div>
+          <div class="card-action-meta">
+            <span class="tap-hint">Tap pad or press key</span>
+            <span class="keypad-badge num">Key 2</span>
+          </div>
         </div>
-
-        <div class="bar-container">
-          <div class="bar cold-bar" id="coldBar"></div>
-        </div>
-
-        <span class="tap-hint">Click or Press [2] to vote</span>
       </article>
 
     </main>
+
+    <!-- Bottom Stage Footnote -->
+    <footer class="stage-footer">
+      <p class="header-subtitle">
+        Mobile controller and stage projection synced in real time on <span class="num">offlinevote.falhen.com</span>.
+      </p>
+    </footer>
 
   </div>
 
@@ -134,175 +195,249 @@
     <div class="settings-modal admin-gate-modal" role="dialog" aria-modal="true" aria-labelledby="adminGateTitle">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <span class="settings-gear-icon">🔒</span>
-          <h3 id="adminGateTitle">Admin Access Gate</h3>
+          <svg class="ui-icon modal-title-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M6.5 9V6.5C6.5 4.567 8.067 3 10 3C11.933 3 13.5 4.567 13.5 6.5V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <h3 id="adminGateTitle">Admin access gate</h3>
         </div>
-        <button class="close-btn" id="closeAdminGateModalBtn" aria-label="Close Admin Gate">&times;</button>
+        <button type="button" class="close-btn" id="closeAdminGateModalBtn" aria-label="Close admin gate">
+          <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5.5 5.5L14.5 14.5M14.5 5.5L5.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
 
       <div class="admin-gate-body">
         <p class="admin-gate-desc">
-          Arena configuration, theme palettes, audio synthesis, and hardware receiver controls are protected by administrator credentials.
+          Sign in with your private Falhen mail account to manage stage protection, reset votes, or adjust the arena theme.
         </p>
 
         <form id="adminLoginForm" class="admin-login-form">
           <div class="admin-form-group">
-            <label for="adminEmailInput" class="admin-label">Admin Email</label>
-            <input 
-              type="email" 
-              id="adminEmailInput" 
-              class="admin-input" 
-              placeholder="Enter admin email" 
-              autocomplete="email" 
-              required 
+            <label for="adminEmailInput" class="admin-label">Admin email or username</label>
+            <input
+              type="text"
+              id="adminEmailInput"
+              name="username"
+              class="admin-input"
+              placeholder="name@falhen.com"
+              autocomplete="username"
+              required
             />
           </div>
 
           <div class="admin-form-group">
-            <label for="adminPassInput" class="admin-label">Admin Password</label>
-            <input 
-              type="password" 
-              id="adminPassInput" 
-              class="admin-input" 
-              placeholder="Enter admin password" 
-              autocomplete="current-password" 
-              required 
+            <label for="adminPassInput" class="admin-label">Password</label>
+            <input
+              type="password"
+              id="adminPassInput"
+              name="password"
+              class="admin-input"
+              placeholder="Enter password"
+              autocomplete="current-password"
+              required
             />
           </div>
 
-          <div class="admin-error-msg" id="adminErrorMsg" style="display: none;"></div>
+          <div class="admin-error-msg" id="adminErrorMsg" role="alert" hidden></div>
 
           <button type="submit" class="action-btn primary admin-submit-btn" id="adminSubmitBtn">
-            <span>Unlock Settings</span>
+            <span>Sign in to console</span>
           </button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Settings Modal (Protected by Admin Gate) -->
+  <!-- Settings & Protection Modal (Protected by Admin Gate) -->
   <div class="modal-overlay" id="settingsModalOverlay">
     <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <span class="settings-gear-icon">⚙️</span>
-          <h3 id="settingsModalTitle">Arena Settings</h3>
+          <svg class="ui-icon modal-title-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M10 2.75V4.5M10 15.5V17.25M2.75 10H4.5M15.5 10H17.25M4.87 4.87L6.1 6.1M13.9 13.9L15.13 15.13M15.13 4.87L13.9 6.1M6.1 13.9L4.87 15.13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <h3 id="settingsModalTitle">Arena settings and protection</h3>
         </div>
         <div class="modal-header-actions">
-          <button class="lock-settings-btn" id="lockSettingsBtn" title="Lock Settings & Sign Out">🔒 Lock</button>
-          <button class="close-btn" id="closeSettingsModalBtn" aria-label="Close Settings">&times;</button>
+          <button type="button" class="lock-settings-btn" id="lockSettingsBtn" title="Lock settings and sign out">
+            <svg class="ui-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5.2 7V5C5.2 3.45 6.45 2.2 8 2.2C9.55 2.2 10.8 3.45 10.8 5V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <span>Lock session</span>
+          </button>
+          <button type="button" class="close-btn" id="closeSettingsModalBtn" aria-label="Close settings">
+            <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5.5 5.5L14.5 14.5M14.5 5.5L5.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      <!-- Section: Hardware Receiver Connection Status (Moved from Frontend) -->
+      <!-- Section 1: Connected Mail Domain & Private DB Identity -->
       <div class="settings-section">
-        <h4 class="section-title">📡 Hardware Receiver Connection</h4>
-        <div class="setting-toggle-card hardware-status-card">
+        <h4 class="section-title">Connected mail domain and private database</h4>
+        <div class="setting-toggle-card mail-domain-card">
           <div class="setting-info">
-            <span class="status-dot" id="statusDot"></span>
+            <span class="status-dot connected" id="mailDomainDot" aria-hidden="true"></span>
             <div>
-              <div class="setting-name">WebSocket Hardware Bridge</div>
-              <div class="setting-desc" id="statusText">Hardware receiver connecting...</div>
+              <div class="setting-name" id="adminIdentityLabel">Authenticated administrator</div>
+              <div class="setting-desc" id="mailDomainDesc">Connected to falhen.com mail domain (sunfire.mxrouting.net:993 TLS) and private SQLite store</div>
             </div>
           </div>
-          <div class="hardware-url-note" id="hardwareUrlNote">ws://localhost:8080</div>
+          <div class="mail-domain-actions">
+            <a href="https://mail.falhen.com" target="_blank" rel="noopener noreferrer" class="action-btn secondary mail-portal-link">Open mail.falhen.com</a>
+          </div>
         </div>
       </div>
 
-      <!-- Section 1: Live Controls (Sound & Demo) -->
+      <!-- Section 2: Arena Protection & Security Controls -->
       <div class="settings-section">
-        <h4 class="section-title">Live Presentation Controls</h4>
+        <h4 class="section-title">Stage protection controls</h4>
         <div class="settings-toggle-grid">
-          
+          <div class="setting-toggle-card">
+            <div class="setting-info">
+              <div>
+                <div class="setting-name">Protect score reset</div>
+                <div class="setting-desc" id="protectResetDesc">Requires administrator session before zeroing votes</div>
+              </div>
+            </div>
+            <button type="button" class="toggle-pill-btn active" id="protectResetToggleBtn">Protected</button>
+          </div>
+
+          <div class="setting-toggle-card">
+            <div class="setting-info">
+              <div>
+                <div class="setting-name">Audience voting lock</div>
+                <div class="setting-desc" id="lockVotingDesc">Allow or pause live voting from phones and keypads</div>
+              </div>
+            </div>
+            <button type="button" class="toggle-pill-btn" id="lockVotingToggleBtn">Voting open</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Hardware Receiver Connection Status -->
+      <div class="settings-section">
+        <h4 class="section-title">Hardware receiver connection</h4>
+        <div class="setting-toggle-card hardware-status-card">
+          <div class="setting-info">
+            <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+            <div>
+              <div class="setting-name">WebSocket hardware bridge</div>
+              <div class="setting-desc" id="statusText">Hardware receiver connecting…</div>
+            </div>
+          </div>
+          <div class="hardware-url-note num" id="hardwareUrlNote">ws://localhost:8080</div>
+        </div>
+      </div>
+
+      <!-- Section 4: Live Controls (Sound & Demo) -->
+      <div class="settings-section">
+        <h4 class="section-title">Live presentation controls</h4>
+        <div class="settings-toggle-grid">
+
           <!-- Sound Toggle -->
           <div class="setting-toggle-card">
             <div class="setting-info">
-              <span class="setting-icon" id="soundIcon">🔊</span>
+              <span class="setting-icon" id="soundIcon" aria-hidden="true">
+                <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M3.5 7.5H6.5L11 4V16L6.5 12.5H3.5V7.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M14 7.5C14.9 8.4 14.9 11.6 14 12.5M16.2 5.5C18 7.5 18 12.5 16.2 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </span>
               <div>
-                <div class="setting-name">Sound Effects</div>
-                <div class="setting-desc" id="soundStatusText">Web Audio pops & chimes active</div>
+                <div class="setting-name">Sound effects</div>
+                <div class="setting-desc" id="soundStatusText">Web Audio synthesizer active</div>
               </div>
             </div>
-            <button class="toggle-pill-btn active" id="soundToggleBtn">Sound ON</button>
+            <button type="button" class="toggle-pill-btn active" id="soundToggleBtn">Sound on</button>
           </div>
 
           <!-- Demo Simulation Toggle -->
           <div class="setting-toggle-card">
             <div class="setting-info">
-              <span class="setting-icon" id="demoIcon">⚡</span>
+              <span class="setting-icon" id="demoIcon" aria-hidden="true">
+                <svg class="ui-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M11 2.5L4.5 11H10L9 17.5L15.5 9H10L11 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+              </span>
               <div>
-                <div class="setting-name">Demo Mode Simulation</div>
-                <div class="setting-desc" id="demoStatusText">Simulates live crowd traffic</div>
+                <div class="setting-name">Demo crowd simulation</div>
+                <div class="setting-desc" id="demoStatusText">Simulates live audience traffic</div>
               </div>
             </div>
-            <button class="toggle-pill-btn" id="demoToggleBtn">Start Demo</button>
+            <button type="button" class="toggle-pill-btn" id="demoToggleBtn">Start demo</button>
           </div>
 
         </div>
       </div>
 
-      <!-- Section 2: Theme Studio & Color Palettes -->
+      <!-- Section 5: Theme Studio & Color Palettes -->
       <div class="settings-section">
-        <h4 class="section-title">Theme Studio & Palettes</h4>
-        <p class="section-desc">Choose a vibrant preset or input your custom hex codes:</p>
-        
+        <h4 class="section-title">Theme studio and palettes</h4>
+        <p class="section-desc">Select a stage preset or configure custom duel colors:</p>
+
         <div class="theme-presets-grid">
-          <div class="preset-card active" data-preset="offline-vybes">
-            <div class="preset-preview">
-              <div style="background: #b6ff00;"></div>
-              <div style="background: #ff3b00;"></div>
-              <div style="background: #00f0ff;"></div>
-              <div style="background: #110d1f;"></div>
+          <div class="preset-card active" data-preset="offline-vybes" tabindex="0" role="button">
+            <div class="preset-preview" aria-hidden="true">
+              <div class="swatch-vybes-1"></div>
+              <div class="swatch-vybes-2"></div>
+              <div class="swatch-vybes-3"></div>
+              <div class="swatch-vybes-4"></div>
             </div>
-            <div class="preset-name">OFFLINE Vybes (Official)</div>
+            <div class="preset-name">Offline Vybes (Official)</div>
           </div>
 
-          <div class="preset-card" data-preset="solar-glacial">
-            <div class="preset-preview">
-              <div style="background: #ff4500;"></div>
-              <div style="background: #ff8c00;"></div>
-              <div style="background: #00d2ff;"></div>
-              <div style="background: #7b2cbf;"></div>
+          <div class="preset-card" data-preset="solar-glacial" tabindex="0" role="button">
+            <div class="preset-preview" aria-hidden="true">
+              <div class="swatch-solar-1"></div>
+              <div class="swatch-solar-2"></div>
+              <div class="swatch-solar-3"></div>
+              <div class="swatch-solar-4"></div>
             </div>
-            <div class="preset-name">Solar Flare & Glacial</div>
+            <div class="preset-name">Solar Flare and Glacial</div>
           </div>
 
-          <div class="preset-card" data-preset="cyber-neon">
-            <div class="preset-preview">
-              <div style="background: #ff007f;"></div>
-              <div style="background: #ff3399;"></div>
-              <div style="background: #00f3ff;"></div>
-              <div style="background: #0088ff;"></div>
+          <div class="preset-card" data-preset="cyber-neon" tabindex="0" role="button">
+            <div class="preset-preview" aria-hidden="true">
+              <div class="swatch-cyber-1"></div>
+              <div class="swatch-cyber-2"></div>
+              <div class="swatch-cyber-3"></div>
+              <div class="swatch-cyber-4"></div>
             </div>
-            <div class="preset-name">Cyber Neon</div>
+            <div class="preset-name">Cyber Signal</div>
           </div>
 
-          <div class="preset-card" data-preset="radioactive-violet">
-            <div class="preset-preview">
-              <div style="background: #00ff88;"></div>
-              <div style="background: #10b981;"></div>
-              <div style="background: #a855f7;"></div>
-              <div style="background: #6366f1;"></div>
+          <div class="preset-card" data-preset="radioactive-violet" tabindex="0" role="button">
+            <div class="preset-preview" aria-hidden="true">
+              <div class="swatch-emerald-1"></div>
+              <div class="swatch-emerald-2"></div>
+              <div class="swatch-emerald-3"></div>
+              <div class="swatch-emerald-4"></div>
             </div>
-            <div class="preset-name">Emerald & Amethyst</div>
+            <div class="preset-name">Emerald and Amber</div>
           </div>
         </div>
 
         <!-- Custom Color Pickers -->
         <div class="custom-picker-section">
           <div class="picker-row">
-            <span class="picker-label">Option 1 (Fire) Primary Color</span>
+            <label for="fireColorPicker" class="picker-label">Option 1 (Fire) primary color</label>
             <div class="picker-controls">
-              <input type="color" class="color-input" id="fireColorPicker" value="#ff3b00">
-              <input type="text" class="hex-display" id="fireHexDisplay" value="#ff3b00" readonly>
+              <input type="color" class="color-input" id="fireColorPicker" value="#ff3b00" aria-label="Fire primary color picker">
+              <input type="text" class="hex-display num" id="fireHexDisplay" value="#ff3b00" readonly aria-label="Fire hex code">
             </div>
           </div>
 
           <div class="picker-row">
-            <span class="picker-label">Option 2 (Cold) Primary Color</span>
+            <label for="coldColorPicker" class="picker-label">Option 2 (Cold) primary color</label>
             <div class="picker-controls">
-              <input type="color" class="color-input" id="coldColorPicker" value="#00f0ff">
-              <input type="text" class="hex-display" id="coldHexDisplay" value="#00f0ff" readonly>
+              <input type="color" class="color-input" id="coldColorPicker" value="#00d4f5" aria-label="Cold primary color picker">
+              <input type="text" class="hex-display num" id="coldHexDisplay" value="#00d4f5" readonly aria-label="Cold hex code">
             </div>
           </div>
         </div>
@@ -310,14 +445,14 @@
 
       <!-- Modal Footer -->
       <div class="modal-footer">
-        <button class="action-btn secondary" id="copyCssBtn">Copy CSS Variables</button>
-        <button class="action-btn primary" id="applyCustomThemeBtn">Apply Custom Theme</button>
+        <button type="button" class="action-btn secondary" id="copyCssBtn">Copy CSS variables</button>
+        <button type="button" class="action-btn primary" id="applyCustomThemeBtn">Apply custom theme</button>
       </div>
     </div>
   </div>
 
   <!-- Toast Message -->
-  <div class="toast" id="toastMessage">Arena Counts Reset to 0</div>
+  <div class="toast" id="toastMessage" role="status" aria-live="polite">Arena counts reset to 0</div>
 
   <script src="app.js"></script>
 </body>
