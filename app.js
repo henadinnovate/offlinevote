@@ -5,9 +5,10 @@
 
 // Detect dedicated /admin route (works on Node server.js AND static hosts via admin/index.html)
 function checkIsAdminRoute() {
-  const path = window.location.pathname || '';
+  if (window.__OFFLINE_ADMIN_ROUTE__) return true;
+  const path = (window.location.pathname || '').toLowerCase();
   const search = new URLSearchParams(window.location.search || '');
-  const hash = window.location.hash || '';
+  const hash = (window.location.hash || '').toLowerCase();
   const forced = sessionStorage.getItem('offline_force_admin_route') === '1';
 
   if (forced) {
@@ -358,7 +359,9 @@ function updateProtectionUI() {
     liveVotingDot.classList.toggle('locked', locked);
   }
   if (liveVotingLabel) {
-    liveVotingLabel.textContent = locked ? 'VOTING PAUSED' : 'LIVE ARENA';
+    liveVotingLabel.textContent = locked
+      ? 'VOTING PAUSED · Real-Time Audience VIBE Meter Arena'
+      : 'Real-Time Audience VIBE Meter Arena';
   }
   if (fireCard) fireCard.classList.toggle('voting-locked', locked);
   if (coldCard) coldCard.classList.toggle('voting-locked', locked);
@@ -914,46 +917,24 @@ async function syncServerSessionAndProtection() {
     const res = await fetch('/api/auth/session', {
       headers: state.adminToken ? { Authorization: `Bearer ${state.adminToken}` } : {}
     });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.protection) {
-      state.protection = { ...state.protection, ...data.protection };
-    }
-    if (data.mailConnection) {
-      state.mailConnection = data.mailConnection;
-    }
-    if (data.authenticated) {
-      state.adminUnlocked = true;
-      sessionStorage.setItem('offline_admin_auth', 'unlocked');
-      if (adminIdentityLabel && data.identity) {
+    if (res.ok) {
+      const data = await res.json();
+      if (data.protection) {
+        state.protection = { ...state.protection, ...data.protection };
+      }
+      if (data.mailConnection) {
+        state.mailConnection = data.mailConnection;
+      }
+      if (data.authenticated && data.identity && adminIdentityLabel) {
         adminIdentityLabel.textContent = `${data.identity} (${data.mailDomain || 'falhen.com'})`;
       }
-    } else if (state.adminToken) {
-      state.adminUnlocked = false;
-      state.adminToken = '';
-      sessionStorage.removeItem('offline_admin_auth');
-      sessionStorage.removeItem('offline_admin_token');
-    }
-    updateProtectionUI();
-
-    // If user navigated to /admin, automatically present Admin Studio or Admin Gate
-    if (state.isAdminRoute) {
-      if (state.adminUnlocked) {
-        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
-        closeAdminGate();
-      } else {
-        openAdminGate();
-      }
+      updateProtectionUI();
     }
   } catch (err) {
-    // Offline static mode fallback for /admin
-    if (state.isAdminRoute) {
-      if (state.adminUnlocked) {
-        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
-      } else {
-        openAdminGate();
-      }
-    }
+    // Offline static mode fallback
+  }
+  if (state.isAdminRoute) {
+    openAdminGate();
   }
 }
 
@@ -1396,11 +1377,7 @@ if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
 
 // Initialize Application
 if (state.isAdminRoute) {
-  if (state.adminUnlocked) {
-    if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
-  } else {
-    openAdminGate();
-  }
+  openAdminGate();
 }
 connectWebSocket();
 initDirectUsbHardware();

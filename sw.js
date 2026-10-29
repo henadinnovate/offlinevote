@@ -1,16 +1,15 @@
 /**
- * OFFLINE Live Arena — Service Worker (PWA App Shell Cache)
+ * OFFLINE Live Arena — Service Worker (Network-First App Shell Cache)
  */
-const CACHE_NAME = 'offline-live-arena-v3';
+const CACHE_NAME = 'offline-live-arena-v6';
 const APP_SHELL = [
   '/',
-  '/admin',
   '/index.html',
-  '/base.css',
-  '/tokens.css',
-  '/styles.css',
-  '/app.js',
-  '/manifest.webmanifest',
+  '/base.css?v=20261029.6',
+  '/tokens.css?v=20261029.6',
+  '/styles.css?v=20261029.6',
+  '/app.js?v=20261029.6',
+  '/manifest.webmanifest?v=20261029.6',
   '/assets/offline-logo.jpg',
   '/assets/offline-banner.jpg'
 ];
@@ -35,7 +34,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')) return;
 
   event.respondWith(
     fetch(req)
@@ -47,4 +46,3 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(req).then((cached) => cached || caches.match('/index.html')))
   );
 });
-

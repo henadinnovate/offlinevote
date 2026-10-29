@@ -1,7 +1,7 @@
 {
-  "name": "OFFLINE Live Arena — Real-Time Sentiment Duel",
+  "name": "OFFLINE Live Arena — Real-Time Audience VIBE Meter Arena",
   "short_name": "OFFLINE Vote",
-  "description": "Real-time live audience polling arena with tactile mobile controller, glassmorphic stage projection, and hardware keypad bridge.",
+  "description": "Real-Time Audience VIBE Meter Arena with tactile mobile PWA controller and glassmorphic stage UI.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -17,4 +17,3 @@
     }
   ]
 }
-

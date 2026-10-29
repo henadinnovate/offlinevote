@@ -1,17 +1,429 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <base href="/">
+  <script>window.__OFFLINE_ADMIN_ROUTE__ = true;</script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>OFFLINE Live Arena — Admin Studio</title>
-  <script>
-    // Static host entrypoint for /admin -> forwards cleanly to /?admin=1 while preserving /admin path
-    sessionStorage.setItem('offline_force_admin_route', '1');
-    window.location.replace('/?admin=1');
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07060a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OFFLINE Vote">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="OFFLINE Live Arena — Real-Time Audience VIBE Meter Arena with glassmorphic stage UI and tactile mobile PWA controller.">
+  <title>OFFLINE Live Arena — Real-Time Audience VIBE Meter Arena</title>
+  <link rel="manifest" href="/manifest.webmanifest?v=20261029.6">
+  <link rel="apple-touch-icon" href="assets/offline-logo.jpg">
+  <link rel="icon" type="image/jpeg" href="assets/offline-logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="base.css?v=20261029.6">
+  <link rel="stylesheet" href="tokens.css?v=20261029.6">
+  <link rel="stylesheet" href="styles.css?v=20261029.6">
 </head>
-<body style="background:#040306;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-  <p>Loading OFFLINE Admin Studio...</p>
+<body>
+
+  <!-- Ambient Dynamic Stage Lighting & Banner Backdrop -->
+  <div class="ambient-stage" aria-hidden="true">
+    <div class="ambient-orb ambient-orb-fire" id="ambientFireOrb"></div>
+    <div class="ambient-orb ambient-orb-cold" id="ambientColdOrb"></div>
+    <div class="ambient-grid"></div>
+  </div>
+
+  <!-- Realtime Particle Burst FX Canvas -->
+  <canvas id="particleCanvas" aria-hidden="true"></canvas>
+
+  <div class="app-container">
+
+    <!-- Clean Top Glass HUD Bar -->
+    <header class="top-toolbar" role="banner">
+      <div class="stage-telemetry-strip">
+        <span class="telemetry-pill" id="liveVotingPill" title="Real-Time Audience VIBE Meter Arena">
+          <span class="telemetry-dot" id="liveVotingDot"></span>
+          <span id="liveVotingLabel">Real-Time Audience VIBE Meter Arena</span>
+        </span>
+        <span class="telemetry-pill telemetry-total" id="totalVotesPill">
+          <span class="telemetry-key">Votes</span>
+          <strong class="telemetry-val" id="totalVotesCount">0</strong>
+        </span>
+      </div>
+
+      <div class="control-pills" role="toolbar" aria-label="Stage Controls">
+        <button class="pill-btn icon-only" id="fullscreenBtn" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen (Shortcut: F)">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+        </button>
+
+        <!-- Admin-Only Reset Icon (Only visible on /admin) -->
+        <button class="pill-btn icon-only admin-only-control" id="resetBtn" type="button" aria-label="Reset Arena Counts" title="Reset Counts (Admin Protected)">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Header Section with OFFLINE Logo, Tagline & Keypad Guide -->
+    <section class="header">
+      <div class="brand-logo-container">
+        <img src="assets/offline-logo.jpg" alt="OFFLINE - Less Scrolling.. More Vibes" class="brand-logo-img" id="brandLogo">
+      </div>
+      <div class="header-copy">
+        <h1 id="arenaTitle">OFFLINE LIVE ARENA</h1>
+        <p class="brand-tagline">LESS SCROLLING.. MORE VIBES</p>
+        <p class="header-subtitle">
+          Vote using your keypad or tap below:
+          <span class="keypad-badge">1</span> Fire 🔥
+          <span class="subtitle-sep">|</span>
+          <span class="keypad-badge">2</span> Cold Chill 🥶
+        </p>
+      </div>
+    </section>
+
+    <!-- Glassmorphic Momentum Duel Meter -->
+    <section class="battle-meter-wrapper" id="battleMeter" aria-label="VIBE Momentum Meter">
+      <div class="battle-meta">
+        <div class="battle-score-left">
+          <span class="battle-side-name">🔥 FIRE</span>
+          <span class="battle-pct-num" id="fireRatioText">50%</span>
+        </div>
+        <div class="battle-duel-pill" id="leadPill">DUEL TIED</div>
+        <div class="battle-score-right">
+          <span class="battle-pct-num" id="coldRatioText">50%</span>
+          <span class="battle-side-name">COLD 🥶</span>
+        </div>
+      </div>
+      <div class="battle-track">
+        <div class="battle-fill-left" id="battleFillLeft"></div>
+        <div class="battle-divider" id="battleDivider"></div>
+        <div class="battle-fill-right" id="battleFillRight"></div>
+      </div>
+    </section>
+
+    <!-- Dual Glassmorphic Voting Cards -->
+    <main class="arena" role="region" aria-label="Live Polling Options">
+
+      <!-- Option 1: Fire Card -->
+      <article class="card fire-card" id="fireCard" tabindex="0" role="button" aria-label="Vote Fire">
+        <div class="card-glass-shine" aria-hidden="true"></div>
+        <div class="leader-tag" id="fireLeaderTag">👑 LEADING</div>
+
+        <div class="card-main-row">
+          <div class="emoji-wrapper">
+            <div class="emoji-aura"></div>
+            <div class="emoji" id="fireEmoji" role="img" aria-label="Fire Emblem">🔥</div>
+          </div>
+
+          <div class="card-stats-col">
+            <div class="label-row">
+              <span class="key-hint">KEY 1</span>
+              <h2 class="label">Fire</h2>
+            </div>
+
+            <div class="counter-box">
+              <span class="counter" id="fireCount">0</span>
+              <span class="percentage-badge" id="firePctBadge">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar-container" aria-hidden="true">
+          <div class="bar fire-bar" id="fireBar"></div>
+        </div>
+
+        <span class="tap-hint">Tap or Press [1] to Vote 🔥</span>
+      </article>
+
+      <!-- Option 2: Cold Chill Card -->
+      <article class="card cold-card" id="coldCard" tabindex="0" role="button" aria-label="Vote Cold Chill">
+        <div class="card-glass-shine" aria-hidden="true"></div>
+        <div class="leader-tag" id="coldLeaderTag">👑 LEADING</div>
+
+        <div class="card-main-row">
+          <div class="emoji-wrapper">
+            <div class="emoji-aura"></div>
+            <div class="emoji" id="coldEmoji" role="img" aria-label="Cold Chill Emblem">🥶</div>
+          </div>
+
+          <div class="card-stats-col">
+            <div class="label-row">
+              <span class="key-hint">KEY 2</span>
+              <h2 class="label">Cold Chill</h2>
+            </div>
+
+            <div class="counter-box">
+              <span class="counter" id="coldCount">0</span>
+              <span class="percentage-badge" id="coldPctBadge">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar-container" aria-hidden="true">
+          <div class="bar cold-bar" id="coldBar"></div>
+        </div>
+
+        <span class="tap-hint">Tap or Press [2] to Vote 🥶</span>
+      </article>
+
+    </main>
+
+    <!-- Subtle Stage Footer -->
+    <footer class="stage-footer">
+      <p class="footer-note">offlinevote.falhen.com · Real-Time Audience VIBE Meter Arena</p>
+    </footer>
+
+  </div>
+
+  <!-- Admin Authentication Gate Modal (Triggered via /admin) -->
+  <div class="modal-overlay active" id="adminGateModalOverlay" role="dialog" aria-modal="true" aria-labelledby="adminGateTitle">
+    <div class="settings-modal admin-gate-modal">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg class="ui-icon modal-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <h3 id="adminGateTitle">Admin Gate (/admin)</h3>
+        </div>
+        <button class="close-btn" id="closeAdminGateModalBtn" type="button" aria-label="Close Admin Login">✕</button>
+      </div>
+
+      <p class="admin-gate-desc">
+        Sign in with your private <strong>falhen.com</strong> administrator account to unlock Arena Protection, Score Reset, and Theme Studio controls.
+      </p>
+
+      <form id="adminLoginForm" class="admin-login-form" autocomplete="on">
+        <div class="admin-form-group">
+          <label for="adminEmailInput" class="admin-label">Administrator Username or Email</label>
+          <input
+            type="text"
+            id="adminEmailInput"
+            class="admin-input"
+            placeholder="username or name@falhen.com"
+            required
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="admin-form-group">
+          <label for="adminPassInput" class="admin-label">Password</label>
+          <input
+            type="password"
+            id="adminPassInput"
+            class="admin-input"
+            placeholder="Enter administrator password"
+            required
+            autocomplete="current-password"
+          >
+        </div>
+
+        <div class="admin-error-msg" id="adminErrorMsg" role="alert" style="display: none;">
+          Invalid administrator credentials. Please try again.
+        </div>
+
+        <div class="admin-form-actions">
+          <a href="/" class="action-btn secondary back-to-stage-link">Back to Live Stage</a>
+          <button type="submit" class="action-btn primary admin-submit-btn" id="adminSubmitBtn">
+            Unlock Studio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings & Protection Modal (Unlocked after signing in on /admin) -->
+  <div class="modal-overlay" id="settingsModalOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="settings-modal">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <svg class="ui-icon modal-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <h3 id="settingsModalTitle">Arena Protection &amp; Theme Studio (/admin)</h3>
+        </div>
+        <div class="modal-header-actions">
+          <a href="/" class="pill-btn exit-admin-link" title="Return to clean public view">Public View</a>
+          <button class="lock-settings-btn" id="lockSettingsBtn" type="button" title="Sign out and lock admin session">
+            Lock Session
+          </button>
+          <button class="close-btn" id="closeSettingsModalBtn" type="button" aria-label="Close Settings">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Section 1: Private DB & Mail Domain Protection -->
+        <div class="settings-section">
+          <h4 class="section-title">Mail Domain &amp; Arena Protection</h4>
+          <div class="setting-toggle-card mail-domain-card">
+            <div class="setting-info">
+              <span class="status-dot connected" id="mailDomainDot"></span>
+              <div>
+                <div class="setting-name" id="adminIdentityLabel">falhen.com Administrator</div>
+                <div class="setting-desc" id="mailDomainDesc">Connected to mail.falhen.com · IMAPS TLS 993</div>
+              </div>
+            </div>
+            <div class="mail-card-actions">
+              <span class="hardware-url-note" id="mailDomainBadge">DB Private</span>
+              <a href="https://mail.falhen.com" target="_blank" rel="noopener noreferrer" class="toggle-pill-btn mail-portal-link">
+                Webmail
+              </a>
+            </div>
+          </div>
+
+          <div class="settings-toggle-grid">
+            <div class="setting-toggle-card">
+              <div class="setting-info">
+                <div>
+                  <div class="setting-name">Reset Arena Scores</div>
+                  <div class="setting-desc">Immediately zero out Fire &amp; Cold counters across all screens</div>
+                </div>
+              </div>
+              <button class="toggle-pill-btn danger-pill-btn" id="studioResetBtn" type="button">Reset to 0</button>
+            </div>
+
+            <div class="setting-toggle-card">
+              <div class="setting-info">
+                <div>
+                  <div class="setting-name">Protect Score Reset</div>
+                  <div class="setting-desc" id="protectResetStatusText">Requires admin sign-in before resetting scores</div>
+                </div>
+              </div>
+              <button class="toggle-pill-btn active" id="protectResetToggleBtn" type="button">Protected</button>
+            </div>
+
+            <div class="setting-toggle-card">
+              <div class="setting-info">
+                <div>
+                  <div class="setting-name">Lock Live Voting</div>
+                  <div class="setting-desc" id="lockVotingStatusText">Audience voting is currently open</div>
+                </div>
+              </div>
+              <button class="toggle-pill-btn" id="lockVotingToggleBtn" type="button">Unlocked</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Audio & Live Crowd Simulation -->
+        <div class="settings-section">
+          <h4 class="section-title">Stage Controls &amp; Simulation</h4>
+          <div class="settings-toggle-grid">
+            <div class="setting-toggle-card">
+              <div class="setting-info">
+                <span class="setting-icon" id="soundIcon">🔊</span>
+                <div>
+                  <div class="setting-name">Synthesizer Sound FX</div>
+                  <div class="setting-desc" id="soundStatusText">Web Audio pops &amp; chimes active</div>
+                </div>
+              </div>
+              <button class="toggle-pill-btn active" id="soundToggleBtn" type="button">Sound ON</button>
+            </div>
+
+            <div class="setting-toggle-card">
+              <div class="setting-info">
+                <span class="setting-icon" id="demoIcon">⚡</span>
+                <div>
+                  <div class="setting-name">Crowd Demo Traffic</div>
+                  <div class="setting-desc" id="demoStatusText">Simulates live crowd voting</div>
+                </div>
+              </div>
+              <button class="toggle-pill-btn" id="demoToggleBtn" type="button">Start Demo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Theme Studio -->
+        <div class="settings-section">
+          <h4 class="section-title">Theme Studio</h4>
+          <p class="section-desc">Select a stage lighting palette or customize primary team colors:</p>
+
+          <div class="theme-presets-grid">
+            <div class="preset-card active" data-preset="offline-vybes">
+              <div class="preset-preview">
+                <div class="swatch-vybes-1"></div>
+                <div class="swatch-vybes-2"></div>
+                <div class="swatch-vybes-3"></div>
+                <div class="swatch-vybes-4"></div>
+              </div>
+              <span class="preset-name">OFFLINE Neon Lime</span>
+            </div>
+
+            <div class="preset-card" data-preset="solar-glacial">
+              <div class="preset-preview">
+                <div class="swatch-solar-1"></div>
+                <div class="swatch-solar-2"></div>
+                <div class="swatch-solar-3"></div>
+                <div class="swatch-solar-4"></div>
+              </div>
+              <span class="preset-name">Solar Flare vs Glacial</span>
+            </div>
+
+            <div class="preset-card" data-preset="cyber-neon">
+              <div class="preset-preview">
+                <div class="swatch-cyber-1"></div>
+                <div class="swatch-cyber-2"></div>
+                <div class="swatch-cyber-3"></div>
+                <div class="swatch-cyber-4"></div>
+              </div>
+              <span class="preset-name">Cyberpunk Magenta</span>
+            </div>
+
+            <div class="preset-card" data-preset="radioactive-violet">
+              <div class="preset-preview">
+                <div class="swatch-emerald-1"></div>
+                <div class="swatch-emerald-2"></div>
+                <div class="swatch-emerald-3"></div>
+                <div class="swatch-emerald-4"></div>
+              </div>
+              <span class="preset-name">Emerald vs Ultraviolet</span>
+            </div>
+          </div>
+
+          <div class="custom-picker-section">
+            <div class="picker-row">
+              <label for="fireColorPicker" class="picker-label">Option 1 (Fire) Color</label>
+              <div class="picker-controls">
+                <input type="color" id="fireColorPicker" value="#ff3b00" class="color-input">
+                <input type="text" id="fireHexDisplay" value="#ff3b00" class="hex-display" readonly aria-label="Option 1 Hex Value">
+              </div>
+            </div>
+            <div class="picker-row">
+              <label for="coldColorPicker" class="picker-label">Option 2 (Cold) Color</label>
+              <div class="picker-controls">
+                <input type="color" id="coldColorPicker" value="#00f0ff" class="color-input">
+                <input type="text" id="coldHexDisplay" value="#00f0ff" class="hex-display" readonly aria-label="Option 2 Hex Value">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="action-btn secondary" id="copyCssBtn" type="button">Copy CSS Variables</button>
+        <button class="action-btn primary" id="applyCustomThemeBtn" type="button">Apply Custom Colors</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toastMessage" role="status" aria-live="polite">Arena Counts Reset</div>
+
+  <!-- Instant /admin Gate Bootstrap (Runs before external JS to guarantee Admin Gate opens on /admin) -->
+  <script>
+    (function () {
+      var p = (window.location.pathname || '').toLowerCase();
+      var s = window.location.search || '';
+      var h = (window.location.hash || '').toLowerCase();
+      if (window.__OFFLINE_ADMIN_ROUTE__ || p === '/admin' || p.indexOf('/admin/') === 0 || s.indexOf('admin=1') !== -1 || h.indexOf('admin') !== -1) {
+        window.__OFFLINE_ADMIN_ROUTE__ = true;
+        document.body.classList.add('admin-route');
+        var gate = document.getElementById('adminGateModalOverlay');
+        if (gate) gate.classList.add('active');
+      }
+    })();
+  </script>
+  <script src="app.js?v=20261029.6"></script>
 </body>
 </html>
-

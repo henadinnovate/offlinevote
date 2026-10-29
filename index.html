@@ -8,17 +8,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="OFFLINE Vote">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="description" content="OFFLINE Live Arena — Real-time audience sentiment duel with glassmorphic stage projection, tactile mobile PWA controller, and hardware keypad bridge.">
-  <title>OFFLINE Live Arena — Real-Time Sentiment Duel</title>
-  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="description" content="OFFLINE Live Arena — Real-Time Audience VIBE Meter Arena with glassmorphic stage UI and tactile mobile PWA controller.">
+  <title>OFFLINE Live Arena — Real-Time Audience VIBE Meter Arena</title>
+  <link rel="manifest" href="/manifest.webmanifest?v=20261029.6">
   <link rel="apple-touch-icon" href="assets/offline-logo.jpg">
   <link rel="icon" type="image/jpeg" href="assets/offline-logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="base.css">
-  <link rel="stylesheet" href="tokens.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="base.css?v=20261029.6">
+  <link rel="stylesheet" href="tokens.css?v=20261029.6">
+  <link rel="stylesheet" href="styles.css?v=20261029.6">
 </head>
 <body>
 
@@ -34,55 +34,32 @@
 
   <div class="app-container">
 
-    <!-- Top Glass HUD Bar (Public view stays clean; Admin controls only appear on /admin) -->
+    <!-- Clean Top Glass HUD Bar -->
     <header class="top-toolbar" role="banner">
       <div class="stage-telemetry-strip">
-        <span class="telemetry-pill" id="liveVotingPill" title="Live Arena Status">
+        <span class="telemetry-pill" id="liveVotingPill" title="Real-Time Audience VIBE Meter Arena">
           <span class="telemetry-dot" id="liveVotingDot"></span>
-          <span id="liveVotingLabel">LIVE ARENA</span>
+          <span id="liveVotingLabel">Real-Time Audience VIBE Meter Arena</span>
         </span>
         <span class="telemetry-pill telemetry-total" id="totalVotesPill">
           <span class="telemetry-key">Votes</span>
           <strong class="telemetry-val" id="totalVotesCount">0</strong>
         </span>
-        <span class="telemetry-pill usb-telemetry-pill" id="usbStatusPill" title="USB Keypad / RF Receiver Status">
-          <span class="telemetry-dot" id="usbStatusDot"></span>
-          <span id="usbStatusLabel">USB Ready</span>
-        </span>
-        <span class="telemetry-pill admin-route-badge admin-only-control" id="adminRouteBadge">
-          ADMIN MODE (/admin)
-        </span>
       </div>
 
-      <div class="control-pills" role="toolbar" aria-label="Stage and Arena Controls">
-        <button class="pill-btn" id="projectionBtn" type="button" aria-pressed="false" title="Toggle Stage Projection Mode (Shortcut: P)">
-          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-            <path d="M8 21h8M12 17v4"></path>
-          </svg>
-          <span class="pill-btn-label">Projection</span>
-        </button>
-
+      <div class="control-pills" role="toolbar" aria-label="Stage Controls">
         <button class="pill-btn icon-only" id="fullscreenBtn" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen (Shortcut: F)">
           <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
           </svg>
         </button>
 
-        <!-- Admin-Only Controls: Strictly hidden on public /, revealed only on /admin -->
+        <!-- Admin-Only Reset Icon (Only visible on /admin) -->
         <button class="pill-btn icon-only admin-only-control" id="resetBtn" type="button" aria-label="Reset Arena Counts" title="Reset Counts (Admin Protected)">
           <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
             <path d="M3 3v5h5"></path>
           </svg>
-        </button>
-
-        <button class="pill-btn admin-only-control" id="settingsBtn" type="button" aria-label="Open Arena Admin Studio" title="Arena Admin Studio (/admin)">
-          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-          <span class="pill-btn-label">Admin Studio</span>
         </button>
       </div>
     </header>
@@ -105,7 +82,7 @@
     </section>
 
     <!-- Glassmorphic Momentum Duel Meter -->
-    <section class="battle-meter-wrapper" id="battleMeter" aria-label="Sentiment Momentum Meter">
+    <section class="battle-meter-wrapper" id="battleMeter" aria-label="VIBE Momentum Meter">
       <div class="battle-meta">
         <div class="battle-score-left">
           <span class="battle-side-name">🔥 FIRE</span>
@@ -193,7 +170,7 @@
 
     <!-- Subtle Stage Footer -->
     <footer class="stage-footer">
-      <p class="footer-note">offlinevote.falhen.com · Real-Time Audience Sentiment Arena</p>
+      <p class="footer-note">offlinevote.falhen.com · Real-Time Audience VIBE Meter Arena</p>
     </footer>
 
   </div>
@@ -255,7 +232,7 @@
     </div>
   </div>
 
-  <!-- Settings & Protection Modal (Unlocked on /admin) -->
+  <!-- Settings & Protection Modal (Unlocked after signing in on /admin) -->
   <div class="modal-overlay" id="settingsModalOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
     <div class="settings-modal">
       <div class="modal-header">
@@ -263,7 +240,7 @@
           <svg class="ui-icon modal-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
-          <h3 id="settingsModalTitle">Arena Studio &amp; Protection (/admin)</h3>
+          <h3 id="settingsModalTitle">Arena Protection &amp; Theme Studio (/admin)</h3>
         </div>
         <div class="modal-header-actions">
           <a href="/" class="pill-btn exit-admin-link" title="Return to clean public view">Public View</a>
@@ -355,27 +332,7 @@
           </div>
         </div>
 
-        <!-- Section 3: USB & Hardware Keypad Bridge -->
-        <div class="settings-section">
-          <h4 class="section-title">USB &amp; Hardware Keypad Bridge</h4>
-          <div class="setting-toggle-card hardware-status-card">
-            <div class="setting-info">
-              <span class="status-dot" id="statusDot"></span>
-              <div>
-                <div class="setting-name" id="statusText">Connecting to receiver...</div>
-                <div class="setting-desc" id="usbDeviceDesc">Supports USB Keypads, 2.4G RF Receivers, WebHID, WebSerial &amp; Bridge</div>
-              </div>
-            </div>
-            <div class="mail-card-actions">
-              <code class="hardware-url-note" id="hardwareUrlNote">ws://localhost:8080</code>
-              <button class="toggle-pill-btn" id="connectUsbBtn" type="button" title="Pair USB HID Keypad or USB Serial Receiver">
-                Connect USB
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 4: Theme Studio -->
+        <!-- Section 3: Theme Studio -->
         <div class="settings-section">
           <h4 class="section-title">Theme Studio</h4>
           <p class="section-desc">Select a stage lighting palette or customize primary team colors:</p>
@@ -451,6 +408,20 @@
   <!-- Toast Notification -->
   <div class="toast" id="toastMessage" role="status" aria-live="polite">Arena Counts Reset</div>
 
-  <script src="app.js"></script>
+  <!-- Instant /admin Gate Bootstrap (Runs before external JS to guarantee Admin Gate opens on /admin) -->
+  <script>
+    (function () {
+      var p = (window.location.pathname || '').toLowerCase();
+      var s = window.location.search || '';
+      var h = (window.location.hash || '').toLowerCase();
+      if (window.__OFFLINE_ADMIN_ROUTE__ || p === '/admin' || p.indexOf('/admin/') === 0 || s.indexOf('admin=1') !== -1 || h.indexOf('admin') !== -1) {
+        window.__OFFLINE_ADMIN_ROUTE__ = true;
+        document.body.classList.add('admin-route');
+        var gate = document.getElementById('adminGateModalOverlay');
+        if (gate) gate.classList.add('active');
+      }
+    })();
+  </script>
+  <script src="app.js?v=20261029.6"></script>
 </body>
 </html>
