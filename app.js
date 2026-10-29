@@ -1,7 +1,32 @@
 /**
- * OFFLINE Live Arena - High-Energy Sentiment Duel
- * Clean presentation mode with Settings Drawer (Theme Studio, Sound & Demo controls)
+ * OFFLINE Live Arena — Glassmorphic Stage Projection, Mobile PWA & /admin Studio
+ * Backed by private SQLite auth + MXroute falhen.com mail domain verification
  */
+
+// Detect dedicated /admin route (works on Node server.js AND static hosts via admin/index.html)
+function checkIsAdminRoute() {
+  const path = window.location.pathname || '';
+  const search = new URLSearchParams(window.location.search || '');
+  const hash = window.location.hash || '';
+  const forced = sessionStorage.getItem('offline_force_admin_route') === '1';
+
+  if (forced) {
+    sessionStorage.removeItem('offline_force_admin_route');
+    try {
+      window.history.replaceState({}, '', '/admin');
+    } catch (_) {}
+    return true;
+  }
+
+  if (search.get('admin') === '1') {
+    try {
+      window.history.replaceState({}, '', '/admin');
+    } catch (_) {}
+    return true;
+  }
+
+  return path === '/admin' || path.startsWith('/admin/') || hash === '#admin' || hash === '#/admin';
+}
 
 // State Management
 const state = {
@@ -11,12 +36,32 @@ const state = {
   demoMode: false,
   demoInterval: null,
   audioCtx: null,
-  adminUnlocked: sessionStorage.getItem('offline_admin_auth') === 'unlocked'
+  projectionMode: false,
+  isAdminRoute: checkIsAdminRoute(),
+  adminUnlocked: sessionStorage.getItem('offline_admin_auth') === 'unlocked',
+  adminToken: sessionStorage.getItem('offline_admin_token') || '',
+  protection: {
+    protectReset: true,
+    protectSettings: true,
+    votingLocked: false,
+    requireDomainAuth: true,
+    mailDomain: 'falhen.com',
+    mailHost: 'mail.falhen.com'
+  },
+  mailConnection: null,
+  pendingResetAfterAuth: false
 };
 
-// Cryptographic SHA-256 Hashes for Admin Gate (Protects raw credentials from public source code)
+if (state.isAdminRoute) {
+  document.body.classList.add('admin-route');
+}
+
+// Cryptographic SHA-256 Hashes for Offline Fallback (Zero plaintext credentials in source)
 const AUTH_HASHES = {
-  email: '9f0b8c2394440ca6d05d699b7f33e7a5cf01a175d73b737f45a38f3b46a581b5',
+  identities: [
+    'f8b774dea316fc0a6e7eee606eb49f8146b44c884077de4686750b56dc9886c4', // email
+    '33d0f191df8a8b1c206e0b3d9f7e18d6e1c93c1ee1a3b89c465acb8004c83a9d'  // username
+  ],
   pass: '72cb0f23437311167f7a8823c98c12e7a8941c2b43256dc7db4eba8f03172f72'
 };
 
@@ -56,11 +101,20 @@ const battleDivider = document.getElementById('battleDivider');
 const ambientFireOrb = document.getElementById('ambientFireOrb');
 const ambientColdOrb = document.getElementById('ambientColdOrb');
 
-// Top Toolbar Controls
+// Top Toolbar & Status Controls
+const projectionBtn = document.getElementById('projectionBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const resetBtn = document.getElementById('resetBtn');
+const studioResetBtn = document.getElementById('studioResetBtn');
 const toastMessage = document.getElementById('toastMessage');
+const totalVotesCount = document.getElementById('totalVotesCount');
+const liveVotingDot = document.getElementById('liveVotingDot');
+const liveVotingLabel = document.getElementById('liveVotingLabel');
+const usbStatusDot = document.getElementById('usbStatusDot');
+const usbStatusLabel = document.getElementById('usbStatusLabel');
+const usbDeviceDesc = document.getElementById('usbDeviceDesc');
+const connectUsbBtn = document.getElementById('connectUsbBtn');
 
 // Admin Lock Gate Modal References
 const adminGateModalOverlay = document.getElementById('adminGateModalOverlay');
@@ -87,6 +141,15 @@ const fireHexDisplay = document.getElementById('fireHexDisplay');
 const coldHexDisplay = document.getElementById('coldHexDisplay');
 const copyCssBtn = document.getElementById('copyCssBtn');
 const applyCustomThemeBtn = document.getElementById('applyCustomThemeBtn');
+
+// Protection & Mail Domain References
+const adminIdentityLabel = document.getElementById('adminIdentityLabel');
+const mailDomainDesc = document.getElementById('mailDomainDesc');
+const mailDomainBadge = document.getElementById('mailDomainBadge');
+const protectResetToggleBtn = document.getElementById('protectResetToggleBtn');
+const protectResetStatusText = document.getElementById('protectResetStatusText');
+const lockVotingToggleBtn = document.getElementById('lockVotingToggleBtn');
+const lockVotingStatusText = document.getElementById('lockVotingStatusText');
 
 // Particle FX Canvas
 const canvas = document.getElementById('particleCanvas');
@@ -163,26 +226,37 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
+function getThemeColors() {
+  const styles = getComputedStyle(document.documentElement);
+  return {
+    fire: styles.getPropertyValue('--fire-primary').trim() || '#ff3b00',
+    fireAlt: styles.getPropertyValue('--fire-secondary').trim() || '#ff8800',
+    cold: styles.getPropertyValue('--cold-primary').trim() || '#00f0ff',
+    coldAlt: styles.getPropertyValue('--cold-secondary').trim() || '#0077ff'
+  };
+}
+
 class Particle {
   constructor(x, y, type) {
+    const palette = getThemeColors();
     this.x = x;
     this.y = y;
     this.type = type;
-    this.size = Math.random() * 6 + 3;
+    this.size = Math.random() * 5.5 + 2.5;
     this.alpha = 1;
     this.rotation = Math.random() * Math.PI * 2;
     this.rotSpeed = (Math.random() - 0.5) * 0.1;
 
     if (type === 'fire') {
-      this.vx = (Math.random() - 0.5) * 4;
-      this.vy = -(Math.random() * 5 + 3);
+      this.vx = (Math.random() - 0.5) * 3.8;
+      this.vy = -(Math.random() * 4.8 + 2.6);
       this.decay = Math.random() * 0.025 + 0.015;
-      this.color = Math.random() > 0.4 ? '#ff5500' : '#ffa500';
+      this.color = Math.random() > 0.4 ? palette.fire : palette.fireAlt;
     } else {
       this.vx = (Math.random() - 0.5) * 3;
-      this.vy = Math.random() * 2 + 1.5;
+      this.vy = Math.random() * 2 + 1.4;
       this.decay = Math.random() * 0.018 + 0.01;
-      this.color = Math.random() > 0.4 ? '#00d2ff' : '#99e6ff';
+      this.color = Math.random() > 0.4 ? palette.cold : palette.coldAlt;
     }
   }
 
@@ -227,14 +301,15 @@ class Particle {
 }
 
 function spawnParticles(sourceEl, type, count = 18) {
+  if (!sourceEl) return;
   const rect = sourceEl.getBoundingClientRect();
   const originX = rect.left + rect.width / 2;
   const originY = rect.top + rect.height / 2;
 
   for (let i = 0; i < count; i++) {
     particles.push(new Particle(
-      originX + (Math.random() - 0.5) * (rect.width * 0.6),
-      originY + (Math.random() - 0.5) * 40,
+      originX + (Math.random() - 0.5) * (rect.width * 0.55),
+      originY + (Math.random() - 0.5) * 36,
       type
     ));
   }
@@ -255,31 +330,116 @@ function renderParticles() {
 renderParticles();
 
 /* -------------------------------------------------------------
- * 3. Floating Reaction Numbers (+1 Effect)
+ * 3. Floating Reaction Numbers (+1 🔥 / +1 🥶 Effect)
  * ------------------------------------------------------------- */
 function spawnFloatingReaction(cardEl, type) {
+  if (!cardEl) return;
   const reaction = document.createElement('div');
   reaction.className = `floating-reaction ${type}`;
   reaction.textContent = type === 'fire' ? '+1 🔥' : '+1 🥶';
 
   const rect = cardEl.getBoundingClientRect();
-  const randomOffsetX = (Math.random() - 0.5) * 60;
+  const randomOffsetX = (Math.random() - 0.5) * 56;
   reaction.style.left = `${rect.left + rect.width / 2 + randomOffsetX}px`;
-  reaction.style.top = `${rect.top + rect.height * 0.4}px`;
+  reaction.style.top = `${rect.top + rect.height * 0.36}px`;
 
   document.body.appendChild(reaction);
-  setTimeout(() => reaction.remove(), 900);
+  setTimeout(() => reaction.remove(), 880);
 }
 
 /* -------------------------------------------------------------
  * 4. UI Rendering & Real-Time Analytics
  * ------------------------------------------------------------- */
+function updateProtectionUI() {
+  const locked = Boolean(state.protection.votingLocked || state.protection.lockVoting);
+  const protectReset = state.protection.protectReset !== false;
+
+  if (liveVotingDot) {
+    liveVotingDot.classList.toggle('locked', locked);
+  }
+  if (liveVotingLabel) {
+    liveVotingLabel.textContent = locked ? 'VOTING PAUSED' : 'LIVE ARENA';
+  }
+  if (fireCard) fireCard.classList.toggle('voting-locked', locked);
+  if (coldCard) coldCard.classList.toggle('voting-locked', locked);
+
+  if (protectResetToggleBtn) {
+    protectResetToggleBtn.classList.toggle('active', protectReset);
+    protectResetToggleBtn.textContent = protectReset ? 'Protected' : 'Unprotected';
+  }
+  if (protectResetStatusText) {
+    protectResetStatusText.textContent = protectReset
+      ? 'Requires authenticated admin session before resetting scores'
+      : 'Anyone with stage access can reset scores';
+  }
+
+  if (lockVotingToggleBtn) {
+    lockVotingToggleBtn.classList.toggle('active', locked);
+    lockVotingToggleBtn.textContent = locked ? 'Locked' : 'Unlocked';
+  }
+  if (lockVotingStatusText) {
+    lockVotingStatusText.textContent = locked
+      ? 'Audience voting is paused on mobile & stage'
+      : 'Audience voting is currently open';
+  }
+
+  if (state.mailConnection && mailDomainDesc) {
+    const host = state.mailConnection.host || state.protection.mailHost || 'mail.falhen.com';
+    const imaps = state.mailConnection.imapsHost || 'sunfire.mxrouting.net';
+    const port = state.mailConnection.imapsPort || 993;
+    const reachable = state.mailConnection.reachable !== false;
+    mailDomainDesc.textContent = `${host} · ${imaps}:${port} (${reachable ? 'TLS Active' : 'Standby'})`;
+    if (mailDomainBadge) {
+      mailDomainBadge.textContent = reachable ? 'IMAPS Verified' : 'Configured';
+    }
+  }
+}
+
+function updateUsbUI(usbInfo) {
+  if (!usbInfo) return;
+  state.usb = usbInfo;
+  const devices = Array.isArray(usbInfo.devices) ? usbInfo.devices : [];
+  const serialPorts = Array.isArray(usbInfo.serialPorts) ? usbInfo.serialPorts : [];
+  const hasUsb = Boolean(usbInfo.connected || devices.length > 0 || serialPorts.length > 0 || state.directUsbConnected);
+
+  if (usbStatusDot) {
+    usbStatusDot.classList.toggle('locked', !hasUsb);
+  }
+  if (usbStatusLabel) {
+    if (usbInfo.activeSerialPort) {
+      usbStatusLabel.textContent = `USB Serial (${usbInfo.activeSerialPort.replace('/dev/', '')})`;
+    } else if (devices.length > 0) {
+      usbStatusLabel.textContent = `USB: ${devices[0]}`;
+    } else if (state.directUsbName) {
+      usbStatusLabel.textContent = `USB: ${state.directUsbName}`;
+    } else {
+      usbStatusLabel.textContent = 'USB Ready';
+    }
+  }
+  if (usbDeviceDesc) {
+    if (devices.length > 0 || serialPorts.length > 0) {
+      const summary = [...devices, ...serialPorts].join(' · ');
+      usbDeviceDesc.textContent = `Connected USB: ${summary}`;
+    } else if (state.directUsbName) {
+      usbDeviceDesc.textContent = `Connected Direct USB: ${state.directUsbName}`;
+    }
+  }
+}
+
 function updateUI(newData, triggeredOption = null) {
   const prevFire = state.fire;
   const prevCold = state.cold;
 
   state.fire = Number(newData.fire) || 0;
   state.cold = Number(newData.cold) || 0;
+
+  if (newData.protection) {
+    state.protection = { ...state.protection, ...newData.protection };
+    updateProtectionUI();
+  }
+  if (newData.usb) {
+    updateUsbUI(newData.usb);
+  }
 
   const total = state.fire + state.cold;
   const fireDelta = state.fire - prevFire;
@@ -288,6 +448,9 @@ function updateUI(newData, triggeredOption = null) {
   // Update Counters
   fireCountEl.textContent = state.fire.toLocaleString();
   coldCountEl.textContent = state.cold.toLocaleString();
+  if (totalVotesCount) {
+    totalVotesCount.textContent = total.toLocaleString();
+  }
 
   // Calculate Percentages
   let firePct = 0;
@@ -298,27 +461,32 @@ function updateUI(newData, triggeredOption = null) {
     coldPct = 100 - firePct;
   }
 
-  // Update Percentage Labels
+  // Update Percentage Labels & GPU Scale Properties
   firePctBadge.textContent = `${firePct}%`;
   coldPctBadge.textContent = `${coldPct}%`;
-  fireBarEl.style.width = `${firePct}%`;
-  coldBarEl.style.width = `${coldPct}%`;
 
-  // Update Top Momentum Duel Bar
+  const root = document.documentElement;
   if (total === 0) {
+    root.style.setProperty('--fire-scale', '0.5');
+    root.style.setProperty('--cold-scale', '0.5');
+    if (fireBarEl) fireBarEl.style.transform = 'scaleX(0)';
+    if (coldBarEl) coldBarEl.style.transform = 'scaleX(0)';
+    if (battleDivider) battleDivider.style.left = '50%';
     fireRatioText.textContent = '50%';
     coldRatioText.textContent = '50%';
-    battleFillLeft.style.width = '50%';
-    battleFillRight.style.width = '50%';
-    battleDivider.style.left = '50%';
     leadPill.textContent = 'DUEL TIED';
-    leadPill.style.color = 'var(--text-muted)';
+    leadPill.style.color = 'var(--color-ink-2)';
   } else {
+    const fireRatio = Math.max(0, Math.min(1, state.fire / total));
+    const coldRatio = Math.max(0, Math.min(1, state.cold / total));
+    root.style.setProperty('--fire-scale', fireRatio.toFixed(4));
+    root.style.setProperty('--cold-scale', coldRatio.toFixed(4));
+    if (fireBarEl) fireBarEl.style.transform = `scaleX(${fireRatio.toFixed(4)})`;
+    if (coldBarEl) coldBarEl.style.transform = `scaleX(${coldRatio.toFixed(4)})`;
+    if (battleDivider) battleDivider.style.left = `${firePct}%`;
+
     fireRatioText.textContent = `${firePct}%`;
     coldRatioText.textContent = `${coldPct}%`;
-    battleFillLeft.style.width = `${firePct}%`;
-    battleFillRight.style.width = `${coldPct}%`;
-    battleDivider.style.left = `${firePct}%`;
 
     if (state.fire > state.cold) {
       const leadDiff = state.fire - state.cold;
@@ -330,31 +498,41 @@ function updateUI(newData, triggeredOption = null) {
       leadPill.style.color = 'var(--cold-primary)';
     } else {
       leadPill.textContent = 'DUEL TIED';
-      leadPill.style.color = '#fff';
+      leadPill.style.color = 'var(--color-ink)';
     }
   }
 
-  // Leader Tags
+  if (battleFillLeft && battleFillRight && battleDivider) {
+    battleDivider.style.opacity = total === 0 ? '0.7' : '1';
+  }
+
+  // Leader Crown Tags & Leading Card Highlight
   if (total > 0 && state.fire > state.cold) {
     fireLeaderTag.classList.add('visible');
     coldLeaderTag.classList.remove('visible');
+    fireCard.classList.add('leading');
+    coldCard.classList.remove('leading');
   } else if (total > 0 && state.cold > state.fire) {
     coldLeaderTag.classList.add('visible');
     fireLeaderTag.classList.remove('visible');
+    coldCard.classList.add('leading');
+    fireCard.classList.remove('leading');
   } else {
     fireLeaderTag.classList.remove('visible');
     coldLeaderTag.classList.remove('visible');
+    fireCard.classList.remove('leading');
+    coldCard.classList.remove('leading');
   }
 
   // Ambient Stage Light Bias
   if (total > 0) {
-    const fireBias = (state.fire / total);
-    const coldBias = (state.cold / total);
-    ambientFireOrb.style.opacity = (0.2 + fireBias * 0.45).toFixed(2);
-    ambientColdOrb.style.opacity = (0.2 + coldBias * 0.45).toFixed(2);
+    const fireBias = state.fire / total;
+    const coldBias = state.cold / total;
+    ambientFireOrb.style.opacity = (0.22 + fireBias * 0.45).toFixed(2);
+    ambientColdOrb.style.opacity = (0.22 + coldBias * 0.45).toFixed(2);
   } else {
-    ambientFireOrb.style.opacity = '0.35';
-    ambientColdOrb.style.opacity = '0.35';
+    ambientFireOrb.style.opacity = '0.38';
+    ambientColdOrb.style.opacity = '0.38';
   }
 
   // Trigger feedback for the exact card that voted
@@ -366,7 +544,7 @@ function updateUI(newData, triggeredOption = null) {
     void fireCard.offsetWidth;
     fireCard.classList.add('active-pulse');
     spawnFloatingReaction(fireCard, 'fire');
-    spawnParticles(fireCard, 'fire', 20);
+    spawnParticles(fireCard, 'fire', 18);
     playVoteSound('fire');
     setTimeout(() => fireCard.classList.remove('active-pulse'), 350);
   }
@@ -376,22 +554,27 @@ function updateUI(newData, triggeredOption = null) {
     void coldCard.offsetWidth;
     coldCard.classList.add('active-pulse');
     spawnFloatingReaction(coldCard, 'cold');
-    spawnParticles(coldCard, 'cold', 20);
+    spawnParticles(coldCard, 'cold', 18);
     playVoteSound('cold');
     setTimeout(() => coldCard.classList.remove('active-pulse'), 350);
   }
 }
 
 /* -------------------------------------------------------------
- * 5. Direct Voting & Handlers
+ * 5. Direct Voting & Protected Reset Handlers
  * ------------------------------------------------------------- */
 function castVote(option) {
+  if (state.protection.votingLocked || state.protection.lockVoting) {
+    showToast('Voting is paused by Arena Moderator');
+    return;
+  }
+
   // Mobile tactile haptic feedback
   if ('vibrate' in navigator) {
     try {
       navigator.vibrate(25);
     } catch (e) {
-      // Haptics optional or blocked by user agent
+      // Haptics optional
     }
   }
 
@@ -406,11 +589,40 @@ function castVote(option) {
   }
 }
 
-function resetArena() {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'RESET' }));
+async function resetArena() {
+  if (state.protection.protectReset && !state.adminUnlocked) {
+    state.pendingResetAfterAuth = true;
+    showToast('Admin authentication required (/admin)');
+    if (state.isAdminRoute) {
+      openAdminGate();
+    }
+    return;
   }
-  updateUI({ fire: 0, cold: 0 });
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'RESET',
+      token: state.adminToken
+    }));
+  } else {
+    updateUI({ fire: 0, cold: 0 });
+  }
+
+  try {
+    if (window.location.protocol !== 'file:') {
+      await fetch('/api/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(state.adminToken ? { Authorization: `Bearer ${state.adminToken}` } : {})
+        },
+        body: JSON.stringify({ token: state.adminToken })
+      });
+    }
+  } catch (err) {
+    // Offline fallback already handled above
+  }
+
   showToast('Arena Counts Reset to 0');
 }
 
@@ -418,21 +630,37 @@ function resetArena() {
 fireCard.addEventListener('click', () => castVote('fire'));
 coldCard.addEventListener('click', () => castVote('cold'));
 
-// Keyboard navigation & Keypad [1] and [2]
+// USB HID Keypad, 2.4G RF Receiver & Presentation Remote Listener (with repeat debounce)
+const FIRE_USB_KEYS = new Set(['1', 'a', 'A', 'ArrowLeft', 'PageUp']);
+const COLD_USB_KEYS = new Set(['2', 'b', 'B', 'ArrowRight', 'PageDown']);
+
 window.addEventListener('keydown', (e) => {
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.repeat) return; // Prevent held USB button from flooding duplicate votes
 
-  if (e.key === '1' || e.code === 'Numpad1') {
+  if (FIRE_USB_KEYS.has(e.key) || e.code === 'Numpad1' || e.code === 'Digit1') {
     e.preventDefault();
+    if (usbStatusLabel && (!state.usb || !state.usb.devices || state.usb.devices.length === 0)) {
+      usbStatusLabel.textContent = 'USB Keypad Active';
+    }
     castVote('fire');
-  } else if (e.key === '2' || e.code === 'Numpad2') {
+  } else if (COLD_USB_KEYS.has(e.key) || e.code === 'Numpad2' || e.code === 'Digit2') {
     e.preventDefault();
+    if (usbStatusLabel && (!state.usb || !state.usb.devices || state.usb.devices.length === 0)) {
+      usbStatusLabel.textContent = 'USB Keypad Active';
+    }
     castVote('cold');
-  } else if (e.key === 'r' || e.key === 'R') {
+  } else if ((e.key === 'r' || e.key === 'R') && (state.isAdminRoute || state.adminUnlocked)) {
+    e.preventDefault();
     resetArena();
+  } else if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault();
+    toggleProjectionMode();
   } else if (e.key === 'f' || e.key === 'F') {
+    e.preventDefault();
     toggleFullscreen();
-  } else if (e.key === 's' || e.key === 'S') {
+  } else if ((e.key === 's' || e.key === 'S') && state.isAdminRoute) {
+    e.preventDefault();
     toggleSettings();
   } else if (e.key === 'Escape') {
     closeSettings();
@@ -440,10 +668,12 @@ window.addEventListener('keydown', (e) => {
 });
 
 /* -------------------------------------------------------------
- * 6. WebSocket Hardware Bridge Connection
+ * 6. WebSocket Hardware Bridge & Direct USB (WebHID / WebSerial / Gamepad)
  * ------------------------------------------------------------- */
+let useLocalBridgeFallback = false;
+
 function getWebSocketUrl() {
-  if (window.location.protocol === 'file:') {
+  if (window.location.protocol === 'file:' || useLocalBridgeFallback) {
     return 'ws://localhost:8080';
   }
   const isSecure = window.location.protocol === 'https:';
@@ -461,7 +691,7 @@ function connectWebSocket() {
 
     ws.onopen = () => {
       if (statusDot) statusDot.classList.add('connected');
-      if (statusText) statusText.textContent = 'Hardware receiver connected';
+      if (statusText) statusText.textContent = 'USB & Hardware Bridge Connected';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
 
@@ -469,7 +699,15 @@ function connectWebSocket() {
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'UPDATE' && payload.data) {
-          updateUI(payload.data);
+          updateUI(payload.data, payload.triggeredOption || null);
+        } else if (payload.type === 'PROTECTION' && payload.data) {
+          state.protection = { ...state.protection, ...payload.data };
+          updateProtectionUI();
+        } else if (payload.type === 'AUTH_REQUIRED') {
+          showToast(payload.message || 'Administrator authentication required');
+          if (state.isAdminRoute) openAdminGate();
+        } else if (payload.type === 'LOCKED') {
+          showToast(payload.message || 'Voting is currently locked');
         } else if (payload.type === 'VOTE' && payload.option) {
           if (payload.option === 'fire') {
             updateUI({ fire: state.fire + 1, cold: state.cold }, 'fire');
@@ -486,27 +724,251 @@ function connectWebSocket() {
 
     ws.onclose = () => {
       if (statusDot) statusDot.classList.remove('connected');
-      if (statusText) statusText.textContent = 'Hardware receiver disconnected / reconnecting...';
+      // If hosted on cloud static origin (e.g. offlinevote.falhen.com), fall back to local USB bridge ws://localhost:8080
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !useLocalBridgeFallback) {
+        useLocalBridgeFallback = true;
+        reconnectTimer = setTimeout(connectWebSocket, 400);
+        return;
+      }
+      if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
-      reconnectTimer = setTimeout(connectWebSocket, 2500);
+      reconnectTimer = setTimeout(connectWebSocket, 3000);
     };
 
     ws.onerror = () => {
       if (statusDot) statusDot.classList.remove('connected');
-      if (statusText) statusText.textContent = 'Hardware bridge error';
+      if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
       if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
     };
   } catch (err) {
     if (statusDot) statusDot.classList.remove('connected');
-    if (statusText) statusText.textContent = 'Hardware bridge error';
+    if (statusText) statusText.textContent = 'Direct USB HID / Local Controller Ready';
     if (hardwareUrlNote) hardwareUrlNote.textContent = targetUrl;
-    reconnectTimer = setTimeout(connectWebSocket, 2500);
+    reconnectTimer = setTimeout(connectWebSocket, 3000);
+  }
+}
+
+// Direct Browser WebHID & WebSerial USB Pairing
+async function attachWebHidDevice(device) {
+  if (!device) return;
+  try {
+    if (!device.opened) {
+      await device.open();
+    }
+    state.directUsbConnected = true;
+    state.directUsbName = device.productName || 'USB HID Keypad';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    if (connectUsbBtn) {
+      connectUsbBtn.classList.add('active');
+      connectUsbBtn.textContent = 'USB Paired';
+    }
+
+    device.oninputreport = (event) => {
+      const bytes = new Uint8Array(event.data.buffer);
+      // Standard HID Usage IDs: 0x1E (1), 0x59 (Keypad 1), 0x04 (A) -> Fire; 0x1F (2), 0x5A (Keypad 2), 0x05 (B) -> Cold
+      for (let i = 0; i < bytes.length; i++) {
+        const code = bytes[i];
+        if (code === 0x1e || code === 0x59 || code === 0x04) {
+          castVote('fire');
+          break;
+        } else if (code === 0x1f || code === 0x5a || code === 0x05) {
+          castVote('cold');
+          break;
+        }
+      }
+    };
+  } catch (_) {
+    // System keyboard HID devices are already handled natively via keydown listener
+  }
+}
+
+async function attachWebSerialPort(port) {
+  if (!port) return;
+  try {
+    await port.open({ baudRate: 9600 });
+    state.directUsbConnected = true;
+    state.directUsbName = 'USB Serial Receiver';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    if (connectUsbBtn) {
+      connectUsbBtn.classList.add('active');
+      connectUsbBtn.textContent = 'USB Paired';
+    }
+
+    const decoder = new TextDecoderStream();
+    port.readable.pipeTo(decoder.writable).catch(() => {});
+    const reader = decoder.readable.getReader();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        buffer += value;
+        const parts = buffer.split(/[\r\n,;\s]+/);
+        buffer = parts.pop() || '';
+        for (const p of parts) {
+          const clean = p.trim().toLowerCase();
+          if (clean === '1' || clean === 'fire' || clean === 'a') castVote('fire');
+          if (clean === '2' || clean === 'cold' || clean === 'b') castVote('cold');
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+async function connectUsbDeviceInteractive() {
+  // 1. Refresh server-side USB hardware scan first if running on Node bridge
+  try {
+    if (window.location.protocol !== 'file:') {
+      const res = await fetch('/api/usb');
+      if (res.ok) {
+        const usbData = await res.json();
+        updateUsbUI(usbData);
+        if (usbData.connected && usbData.devices && usbData.devices.length > 0) {
+          showToast(`USB Active: ${usbData.devices.join(', ')}`);
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. Offer Browser WebHID or WebSerial pairing for direct USB receivers
+  try {
+    if ('serial' in navigator) {
+      const port = await navigator.serial.requestPort();
+      await attachWebSerialPort(port);
+      showToast('USB Serial Receiver Connected');
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    if ('hid' in navigator) {
+      const devices = await navigator.hid.requestDevice({ filters: [] });
+      if (devices && devices.length > 0) {
+        await attachWebHidDevice(devices[0]);
+        showToast(`Connected: ${devices[0].productName || 'USB HID Device'}`);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  showToast('USB HID Keypad & RF Receiver Listener Active');
+}
+
+if (connectUsbBtn) {
+  connectUsbBtn.addEventListener('click', connectUsbDeviceInteractive);
+}
+
+// Auto-reconnect previously authorized WebHID / WebSerial devices & USB Gamepads
+async function initDirectUsbHardware() {
+  if ('hid' in navigator) {
+    try {
+      const devices = await navigator.hid.getDevices();
+      devices.forEach((d) => attachWebHidDevice(d));
+      navigator.hid.addEventListener('connect', (e) => {
+        attachWebHidDevice(e.device);
+        showToast(`USB Connected: ${e.device.productName || 'HID Keypad'}`);
+      });
+      navigator.hid.addEventListener('disconnect', () => {
+        showToast('USB Device Disconnected');
+      });
+    } catch (_) {}
+  }
+
+  if ('serial' in navigator) {
+    try {
+      const ports = await navigator.serial.getPorts();
+      if (ports.length > 0) attachWebSerialPort(ports[0]);
+    } catch (_) {}
+  }
+
+  // USB Gamepad / USB Button-Box Controller Polling
+  const prevButtons = {};
+  function pollGamepads() {
+    if ('getGamepads' in navigator) {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < pads.length; i++) {
+        const pad = pads[i];
+        if (!pad) continue;
+        const b0 = Boolean(pad.buttons[0] && pad.buttons[0].pressed);
+        const b1 = Boolean(pad.buttons[1] && pad.buttons[1].pressed);
+        const prev = prevButtons[pad.index] || { b0: false, b1: false };
+        if (b0 && !prev.b0) castVote('fire');
+        if (b1 && !prev.b1) castVote('cold');
+        prevButtons[pad.index] = { b0, b1 };
+      }
+    }
+    requestAnimationFrame(pollGamepads);
+  }
+  window.addEventListener('gamepadconnected', (e) => {
+    state.directUsbConnected = true;
+    state.directUsbName = e.gamepad.id || 'USB Controller';
+    updateUsbUI(state.usb || { connected: true, devices: [state.directUsbName] });
+    showToast(`USB Controller Connected`);
+  });
+  requestAnimationFrame(pollGamepads);
+}
+
+async function syncServerSessionAndProtection() {
+  if (window.location.protocol === 'file:') return;
+  try {
+    const res = await fetch('/api/auth/session', {
+      headers: state.adminToken ? { Authorization: `Bearer ${state.adminToken}` } : {}
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.protection) {
+      state.protection = { ...state.protection, ...data.protection };
+    }
+    if (data.mailConnection) {
+      state.mailConnection = data.mailConnection;
+    }
+    if (data.authenticated) {
+      state.adminUnlocked = true;
+      sessionStorage.setItem('offline_admin_auth', 'unlocked');
+      if (adminIdentityLabel && data.identity) {
+        adminIdentityLabel.textContent = `${data.identity} (${data.mailDomain || 'falhen.com'})`;
+      }
+    } else if (state.adminToken) {
+      state.adminUnlocked = false;
+      state.adminToken = '';
+      sessionStorage.removeItem('offline_admin_auth');
+      sessionStorage.removeItem('offline_admin_token');
+    }
+    updateProtectionUI();
+
+    // If user navigated to /admin, automatically present Admin Studio or Admin Gate
+    if (state.isAdminRoute) {
+      if (state.adminUnlocked) {
+        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+        closeAdminGate();
+      } else {
+        openAdminGate();
+      }
+    }
+  } catch (err) {
+    // Offline static mode fallback for /admin
+    if (state.isAdminRoute) {
+      if (state.adminUnlocked) {
+        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+      } else {
+        openAdminGate();
+      }
+    }
   }
 }
 
 /* -------------------------------------------------------------
- * 7. Fullscreen & Discreet Controls
+ * 7. Stage Projection Mode, Fullscreen & Discreet Controls
  * ------------------------------------------------------------- */
+function toggleProjectionMode() {
+  state.projectionMode = !state.projectionMode;
+  document.body.classList.toggle('projection-mode', state.projectionMode);
+  if (projectionBtn) {
+    projectionBtn.setAttribute('aria-pressed', state.projectionMode ? 'true' : 'false');
+  }
+  showToast(state.projectionMode ? 'Stage Projection Mode Active' : 'Standard Arena View');
+}
+
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
@@ -514,18 +976,21 @@ function toggleFullscreen() {
     document.exitFullscreen().catch(() => {});
   }
 }
+
+if (projectionBtn) projectionBtn.addEventListener('click', toggleProjectionMode);
 if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 if (resetBtn) resetBtn.addEventListener('click', resetArena);
+if (studioResetBtn) studioResetBtn.addEventListener('click', resetArena);
 
 function showToast(msg) {
   if (!toastMessage) return;
   toastMessage.textContent = msg;
   toastMessage.classList.add('active');
-  setTimeout(() => toastMessage.classList.remove('active'), 2000);
+  setTimeout(() => toastMessage.classList.remove('active'), 2200);
 }
 
 /* -------------------------------------------------------------
- * 8. Settings Drawer & Admin Access Gate
+ * 8. /admin Studio Drawer, Mail Domain Auth & Protection Controls
  * ------------------------------------------------------------- */
 function openAdminGate() {
   if (adminGateModalOverlay) {
@@ -543,7 +1008,7 @@ function closeAdminGate() {
 }
 
 function openSettings() {
-  if (state.adminUnlocked) {
+  if (state.adminUnlocked || !state.protection.protectSettings) {
     if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
   } else {
     openAdminGate();
@@ -556,7 +1021,7 @@ function closeSettings() {
 }
 
 function toggleSettings() {
-  if (state.adminUnlocked) {
+  if (state.adminUnlocked || !state.protection.protectSettings) {
     if (settingsModalOverlay) {
       settingsModalOverlay.classList.toggle('active');
     }
@@ -569,11 +1034,30 @@ function toggleSettings() {
   }
 }
 
-function lockSettings() {
+async function lockSettings() {
+  try {
+    if (window.location.protocol !== 'file:' && state.adminToken) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${state.adminToken}`
+        },
+        body: JSON.stringify({ token: state.adminToken })
+      });
+    }
+  } catch (err) {
+    // Ignore network error during logout
+  }
   state.adminUnlocked = false;
+  state.adminToken = '';
   sessionStorage.removeItem('offline_admin_auth');
+  sessionStorage.removeItem('offline_admin_token');
   closeSettings();
-  showToast('Settings Locked 🔒');
+  showToast('Admin Session Locked 🔒');
+  if (state.isAdminRoute) {
+    openAdminGate();
+  }
 }
 
 if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
@@ -593,29 +1077,88 @@ if (settingsModalOverlay) {
   });
 }
 
-// Admin Gate Form Submission
+// Admin Gate Form Submission (DB + Mail Domain first, SHA-256 fallback)
 if (adminLoginForm) {
   adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (adminErrorMsg) adminErrorMsg.style.display = 'none';
 
-    const emailVal = (adminEmailInput ? adminEmailInput.value : '').trim().toLowerCase();
+    const rawIdentity = (adminEmailInput ? adminEmailInput.value : '').trim().toLowerCase();
     const passVal = (adminPassInput ? adminPassInput.value : '').trim();
 
-    try {
-      const emailHash = await computeSha256(emailVal);
-      const passHash = await computeSha256(passVal);
+    if (adminSubmitBtn) {
+      adminSubmitBtn.disabled = true;
+      adminSubmitBtn.textContent = 'Verifying...';
+    }
 
-      if (emailHash === AUTH_HASHES.email && passHash === AUTH_HASHES.pass) {
+    try {
+      let authenticated = false;
+      let resolvedIdentity = rawIdentity.includes('@') ? rawIdentity : `${rawIdentity}@falhen.com`;
+
+      // 1. Try server-backed SQLite + MXroute falhen.com verification
+      if (window.location.protocol !== 'file:') {
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: rawIdentity, password: passVal })
+          });
+
+          if (response.ok) {
+            const payload = await response.json();
+            if (payload.ok || payload.authenticated) {
+              authenticated = true;
+              state.adminToken = payload.token || '';
+              sessionStorage.setItem('offline_admin_token', state.adminToken);
+              if (payload.protection) {
+                state.protection = { ...state.protection, ...payload.protection };
+              }
+              if (payload.mailConnection) {
+                state.mailConnection = payload.mailConnection;
+              }
+              if (payload.account && payload.account.domain) {
+                resolvedIdentity = rawIdentity.includes('@')
+                  ? rawIdentity
+                  : `${rawIdentity}@${payload.account.domain}`;
+              }
+            }
+          }
+        } catch (networkErr) {
+          // Fall back to local cryptographic hash verification if server is unreachable
+        }
+      }
+
+      // 2. Cryptographic SHA-256 fallback verification
+      if (!authenticated) {
+        const identityHash = await computeSha256(rawIdentity);
+        const passHash = await computeSha256(passVal);
+        if (AUTH_HASHES.identities.includes(identityHash) && passHash === AUTH_HASHES.pass) {
+          authenticated = true;
+        }
+      }
+
+      if (authenticated) {
         state.adminUnlocked = true;
+        state.isAdminRoute = true;
+        document.body.classList.add('admin-route');
         sessionStorage.setItem('offline_admin_auth', 'unlocked');
         if (adminPassInput) adminPassInput.value = '';
+        if (adminIdentityLabel) {
+          adminIdentityLabel.textContent = resolvedIdentity;
+        }
+        updateProtectionUI();
         closeAdminGate();
-        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
-        showToast('Admin Authenticated 🔓');
+
+        if (state.pendingResetAfterAuth) {
+          state.pendingResetAfterAuth = false;
+          await resetArena();
+        } else if (settingsModalOverlay) {
+          settingsModalOverlay.classList.add('active');
+          showToast('Admin Authenticated 🔓');
+        }
       } else {
         if (adminErrorMsg) {
-          adminErrorMsg.textContent = 'Invalid administrator email or password.';
+          adminErrorMsg.textContent = 'Invalid falhen.com administrator credentials.';
           adminErrorMsg.style.display = 'block';
         }
       }
@@ -625,7 +1168,66 @@ if (adminLoginForm) {
         adminErrorMsg.textContent = 'Authentication error. Please try again.';
         adminErrorMsg.style.display = 'block';
       }
+    } finally {
+      if (adminSubmitBtn) {
+        adminSubmitBtn.disabled = false;
+        adminSubmitBtn.textContent = 'Unlock Studio';
+      }
     }
+  });
+}
+
+// Protection Controls inside Settings
+async function updateServerProtection(patch, toastLabel) {
+  state.protection = { ...state.protection, ...patch };
+  updateProtectionUI();
+
+  if (window.location.protocol !== 'file:' && state.adminToken) {
+    try {
+      const res = await fetch('/api/protection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${state.adminToken}`
+        },
+        body: JSON.stringify({
+          token: state.adminToken,
+          ...patch
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.protection) {
+          state.protection = { ...state.protection, ...data.protection };
+          updateProtectionUI();
+        }
+      }
+    } catch (err) {
+      // Offline mode keeps local state
+    }
+  }
+
+  if (toastLabel) showToast(toastLabel);
+}
+
+if (protectResetToggleBtn) {
+  protectResetToggleBtn.addEventListener('click', () => {
+    const nextVal = !state.protection.protectReset;
+    updateServerProtection(
+      { protectReset: nextVal },
+      nextVal ? 'Score Reset Protection Enabled' : 'Score Reset Protection Disabled'
+    );
+  });
+}
+
+if (lockVotingToggleBtn) {
+  lockVotingToggleBtn.addEventListener('click', () => {
+    const currentlyLocked = Boolean(state.protection.votingLocked || state.protection.lockVoting);
+    const nextVal = !currentlyLocked;
+    updateServerProtection(
+      { votingLocked: nextVal, lockVoting: nextVal },
+      nextVal ? 'Live Audience Voting Locked' : 'Live Audience Voting Unlocked'
+    );
   });
 }
 
@@ -636,10 +1238,12 @@ function toggleSound() {
     soundToggleBtn.classList.toggle('active', state.soundEnabled);
     soundToggleBtn.textContent = state.soundEnabled ? 'Sound ON' : 'Muted';
   }
-  if (soundIcon) soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
+  if (soundIcon) {
+    soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
+  }
   if (soundStatusText) {
-    soundStatusText.textContent = state.soundEnabled 
-      ? 'Web Audio pops & chimes active' 
+    soundStatusText.textContent = state.soundEnabled
+      ? 'Web Audio pops & chimes active'
       : 'Sound effects muted';
   }
   showToast(state.soundEnabled ? 'Sound FX Enabled' : 'Sound FX Muted');
@@ -654,9 +1258,9 @@ function toggleDemoMode() {
     demoToggleBtn.textContent = state.demoMode ? 'Stop Demo' : 'Start Demo';
   }
   if (demoStatusText) {
-    demoStatusText.textContent = state.demoMode 
-      ? 'Simulating audience traffic...' 
-      : 'Simulates live crowd traffic';
+    demoStatusText.textContent = state.demoMode
+      ? 'Simulating audience traffic...'
+      : 'Simulates live crowd voting';
   }
 
   if (state.demoMode) {
@@ -711,14 +1315,16 @@ const THEME_PRESETS = {
 function applyPalette(theme) {
   const root = document.documentElement;
   root.style.setProperty('--fire-primary', theme.fire);
-  root.style.setProperty('--fire-gradient', `linear-gradient(135deg, ${theme.fireSec} 0%, ${theme.fire} 50%, ${theme.fireAccent} 100%)`);
-  root.style.setProperty('--fire-glow', `${theme.fire}77`);
-  root.style.setProperty('--fire-subtle', `${theme.fire}22`);
+  root.style.setProperty('--fire-secondary', theme.fireSec);
+  root.style.setProperty('--fire-glow', `${theme.fire}88`);
+  root.style.setProperty('--fire-soft', `${theme.fire}33`);
+  root.style.setProperty('--fire-border', `${theme.fire}99`);
 
   root.style.setProperty('--cold-primary', theme.cold);
-  root.style.setProperty('--cold-gradient', `linear-gradient(135deg, ${theme.cold} 0%, ${theme.coldSec} 50%, ${theme.coldAccent} 100%)`);
-  root.style.setProperty('--cold-glow', `${theme.cold}77`);
-  root.style.setProperty('--cold-subtle', `${theme.cold}22`);
+  root.style.setProperty('--cold-secondary', theme.coldSec);
+  root.style.setProperty('--cold-glow', `${theme.cold}88`);
+  root.style.setProperty('--cold-soft', `${theme.cold}33`);
+  root.style.setProperty('--cold-border', `${theme.cold}99`);
 
   if (fireColorPicker) fireColorPicker.value = theme.fire;
   if (fireHexDisplay) fireHexDisplay.value = theme.fire;
@@ -734,7 +1340,8 @@ presetCards.forEach(card => {
     const presetKey = card.getAttribute('data-preset');
     if (THEME_PRESETS[presetKey]) {
       applyPalette(THEME_PRESETS[presetKey]);
-      showToast(`Applied: ${card.querySelector('.preset-name').textContent}`);
+      const nameEl = card.querySelector('.preset-name');
+      showToast(`Applied: ${nameEl ? nameEl.textContent : presetKey}`);
     }
   });
 });
@@ -770,10 +1377,7 @@ if (applyCustomThemeBtn) {
 
 if (copyCssBtn) {
   copyCssBtn.addEventListener('click', () => {
-    const cssTokens = `:root {
-  --fire-primary: ${fireColorPicker.value};
-  --cold-primary: ${coldColorPicker.value};
-}`;
+    const cssTokens = `:root {\n  --fire-primary: ${fireColorPicker.value};\n  --cold-primary: ${coldColorPicker.value};\n}`;
     navigator.clipboard.writeText(cssTokens).then(() => {
       showToast('CSS Variables Copied!');
     }).catch(() => {
@@ -783,6 +1387,23 @@ if (copyCssBtn) {
   });
 }
 
+// Register PWA Service Worker for Mobile App Experience
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 // Initialize Application
+if (state.isAdminRoute) {
+  if (state.adminUnlocked) {
+    if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+  } else {
+    openAdminGate();
+  }
+}
 connectWebSocket();
+initDirectUsbHardware();
+syncServerSessionAndProtection();
 updateUI({ fire: 0, cold: 0 });
+updateProtectionUI();

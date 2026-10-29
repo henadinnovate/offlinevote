@@ -1,0 +1,161 @@
+:root {
+  color-scheme: dark;
+
+  /* Spacing Scale (4px grid) */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --space-4xl: 144px;
+
+  /* Fixed App Typography Scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+  --text-2xl: 1.728rem;
+  --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem;
+  --text-display: 2.25rem;
+  --text-counter: clamp(2.85rem, 6.2vw, 5.4rem);
+  --text-counter-proj: clamp(4.2rem, 8.8vw, 7.8rem);
+  --text-section: 1.2rem;
+  --text-title: 1rem;
+  --text-lead: 1rem;
+
+  /* Motion & Easing Tokens */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  /* Layout & Z-Index Ladder */
+  --container: 1220px;
+  --container-proj: 1480px;
+  --gutter: 24px;
+  --gap-columns: 24px;
+  --section-gap-s: 64px;
+  --section-gap: 96px;
+  --section-gap-l: 120px;
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* Dark Stage & Optimized Glassmorphism Surface Tokens */
+  --color-paper: oklch(11.5% 0.022 258);
+  --color-paper-2: oklch(15.2% 0.024 258);
+  --color-paper-3: oklch(19.5% 0.025 258);
+  --color-paper-4: oklch(23.5% 0.025 258);
+  --color-overlay: oklch(9% 0.018 258 / 0.84);
+  --color-ink: oklch(97% 0.01 85);
+  --color-ink-2: oklch(85% 0.014 255);
+  --color-muted: oklch(72% 0.02 255);
+  --color-rule: oklch(100% 0 0 / 0.14);
+  --color-rule-2: oklch(100% 0 0 / 0.24);
+
+  /* Multi-Layer Glassmorphism Recipe */
+  --glass-bg: oklch(14% 0.025 258 / 0.66);
+  --glass-bg-hover: oklch(17% 0.028 258 / 0.76);
+  --glass-bg-strong: oklch(13% 0.024 258 / 0.84);
+  --glass-pill-bg: oklch(100% 0 0 / 0.07);
+  --glass-pill-hover: oklch(100% 0 0 / 0.14);
+  --glass-border: oklch(100% 0 0 / 0.15);
+  --glass-border-hi: oklch(100% 0 0 / 0.28);
+  --glass-specular: inset 0 1px 0 oklch(100% 0 0 / 0.22);
+  --glass-blur: 22px;
+
+  /* OFFLINE Brand & Semantic Signals */
+  --brand-lime: oklch(90% 0.24 126);
+  --brand-lime-glow: oklch(90% 0.24 126 / 0.45);
+  --color-accent: oklch(90% 0.24 126);
+  --color-accent-soft: oklch(24% 0.06 126 / 0.65);
+  --color-accent-border: oklch(90% 0.24 126 / 0.55);
+  --color-accent-ink: oklch(14% 0.03 126);
+  --color-focus: oklch(90% 0.24 126);
+  --color-error: oklch(64% 0.19 25);
+  --color-error-soft: oklch(22% 0.06 25 / 0.72);
+  --color-error-border: oklch(48% 0.14 25);
+  --color-success: oklch(78% 0.17 152);
+  --color-success-soft: oklch(22% 0.05 152 / 0.72);
+  --color-band: oklch(18% 0.026 258);
+  --color-band-ink: oklch(96% 0.01 85);
+  --color-slot: oklch(100% 0 0 / 0.08);
+
+  /* Option 1 (Fire 🔥) Tokens */
+  --fire-primary: oklch(65% 0.23 32);
+  --fire-secondary: oklch(75% 0.19 52);
+  --fire-accent: oklch(90% 0.24 126);
+  --fire-glow: oklch(65% 0.23 32 / 0.52);
+  --fire-soft: oklch(65% 0.23 32 / 0.18);
+  --fire-border: oklch(65% 0.23 32 / 0.55);
+  --fire-ink: oklch(97% 0.015 45);
+  --fire-bar-fill: var(--fire-primary);
+  --fire-scale: 0.5;
+
+  /* Option 2 (Cold Chill 🥶) Tokens */
+  --cold-primary: oklch(82% 0.155 206);
+  --cold-secondary: oklch(66% 0.16 236);
+  --cold-accent: oklch(62% 0.22 295);
+  --cold-glow: oklch(82% 0.155 206 / 0.52);
+  --cold-soft: oklch(82% 0.155 206 / 0.18);
+  --cold-border: oklch(82% 0.155 206 / 0.55);
+  --cold-ink: oklch(97% 0.015 206);
+  --cold-bar-fill: var(--cold-primary);
+  --cold-scale: 0.5;
+
+  /* Preset Swatch Tokens */
+  --swatch-vybes-1: oklch(90% 0.24 126);
+  --swatch-vybes-2: oklch(65% 0.23 32);
+  --swatch-vybes-3: oklch(82% 0.155 206);
+  --swatch-vybes-4: oklch(15.2% 0.024 258);
+
+  --swatch-solar-1: oklch(66% 0.21 38);
+  --swatch-solar-2: oklch(76% 0.17 65);
+  --swatch-solar-3: oklch(74% 0.14 215);
+  --swatch-solar-4: oklch(22% 0.04 240);
+
+  --swatch-cyber-1: oklch(66% 0.23 350);
+  --swatch-cyber-2: oklch(74% 0.19 15);
+  --swatch-cyber-3: oklch(78% 0.14 200);
+  --swatch-cyber-4: oklch(20% 0.04 250);
+
+  --swatch-emerald-1: oklch(78% 0.17 155);
+  --swatch-emerald-2: oklch(68% 0.15 162);
+  --swatch-emerald-3: oklch(76% 0.15 75);
+  --swatch-emerald-4: oklch(20% 0.03 180);
+
+  /* Machined & Glass Hardware Surfaces */
+  --metal-hi: oklch(32% 0.016 258);
+  --metal-lo: oklch(21% 0.018 258);
+  --edge-light: inset 0 1px 0 oklch(100% 0 0 / 0.18);
+  --shadow-part: 0 4px 14px oklch(6% 0.01 258 / 0.48);
+  --shadow-panel: 0 24px 54px -14px oklch(4% 0.01 258 / 0.78);
+  --shadow-card: 0 20px 48px -14px oklch(4% 0.01 258 / 0.72);
+
+  /* Font Stacks */
+  --font-display: "Outfit", "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Radii & Rules */
+  --radius-card: 24px;
+  --radius-part: 12px;
+  --radius-pill: 999px;
+  --rule-hair: 1px;
+  --tracking-display: -0.03em;
+  --display-weight: 800;
+}

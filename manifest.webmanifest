@@ -1,0 +1,20 @@
+{
+  "name": "OFFLINE Live Arena — Real-Time Sentiment Duel",
+  "short_name": "OFFLINE Vote",
+  "description": "Real-time live audience polling arena with tactile mobile controller, glassmorphic stage projection, and hardware keypad bridge.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#040306",
+  "theme_color": "#07060a",
+  "icons": [
+    {
+      "src": "/assets/offline-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
