@@ -6,6 +6,8 @@ services:
     region: oregon
     buildCommand: npm install
     startCommand: npm start
+    domains:
+      - offlinevote.falhen.com
     envVars:
       - key: NODE_ENV
         value: production
