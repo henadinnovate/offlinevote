@@ -1,7 +1,32 @@
 /**
- * OFFLINE Live Arena - Stage Projection & Mobile Tactile Controller
+ * OFFLINE Live Arena — Glassmorphic Stage Projection, Mobile PWA & /admin Studio
  * Backed by private SQLite auth + MXroute falhen.com mail domain verification
  */
+
+// Detect dedicated /admin route (works on Node server.js AND static hosts via admin/index.html)
+function checkIsAdminRoute() {
+  const path = window.location.pathname || '';
+  const search = new URLSearchParams(window.location.search || '');
+  const hash = window.location.hash || '';
+  const forced = sessionStorage.getItem('offline_force_admin_route') === '1';
+
+  if (forced) {
+    sessionStorage.removeItem('offline_force_admin_route');
+    try {
+      window.history.replaceState({}, '', '/admin');
+    } catch (_) {}
+    return true;
+  }
+
+  if (search.get('admin') === '1') {
+    try {
+      window.history.replaceState({}, '', '/admin');
+    } catch (_) {}
+    return true;
+  }
+
+  return path === '/admin' || path.startsWith('/admin/') || hash === '#admin' || hash === '#/admin';
+}
 
 // State Management
 const state = {
@@ -12,6 +37,7 @@ const state = {
   demoInterval: null,
   audioCtx: null,
   projectionMode: false,
+  isAdminRoute: checkIsAdminRoute(),
   adminUnlocked: sessionStorage.getItem('offline_admin_auth') === 'unlocked',
   adminToken: sessionStorage.getItem('offline_admin_token') || '',
   protection: {
@@ -25,6 +51,10 @@ const state = {
   mailConnection: null,
   pendingResetAfterAuth: false
 };
+
+if (state.isAdminRoute) {
+  document.body.classList.add('admin-route');
+}
 
 // Cryptographic SHA-256 Hashes for Offline Fallback (Zero plaintext credentials in source)
 const AUTH_HASHES = {
@@ -44,7 +74,7 @@ async function computeSha256(str) {
     .join('');
 }
 
-// DOM References (All original IDs preserved for Hallmark wiring contract)
+// DOM References
 const fireCountEl = document.getElementById('fireCount');
 const coldCountEl = document.getElementById('coldCount');
 const firePctBadge = document.getElementById('firePctBadge');
@@ -76,6 +106,7 @@ const projectionBtn = document.getElementById('projectionBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const resetBtn = document.getElementById('resetBtn');
+const studioResetBtn = document.getElementById('studioResetBtn');
 const toastMessage = document.getElementById('toastMessage');
 const totalVotesCount = document.getElementById('totalVotesCount');
 const liveVotingDot = document.getElementById('liveVotingDot');
@@ -194,10 +225,10 @@ resizeCanvas();
 function getThemeColors() {
   const styles = getComputedStyle(document.documentElement);
   return {
-    fire: styles.getPropertyValue('--fire-primary').trim() || '#ff4a1c',
-    fireAlt: styles.getPropertyValue('--fire-secondary').trim() || '#ff8c24',
-    cold: styles.getPropertyValue('--cold-primary').trim() || '#00d8ff',
-    coldAlt: styles.getPropertyValue('--cold-secondary').trim() || '#3b82f6'
+    fire: styles.getPropertyValue('--fire-primary').trim() || '#ff3b00',
+    fireAlt: styles.getPropertyValue('--fire-secondary').trim() || '#ff8800',
+    cold: styles.getPropertyValue('--cold-primary').trim() || '#00f0ff',
+    coldAlt: styles.getPropertyValue('--cold-secondary').trim() || '#0077ff'
   };
 }
 
@@ -265,7 +296,7 @@ class Particle {
   }
 }
 
-function spawnParticles(sourceEl, type, count = 16) {
+function spawnParticles(sourceEl, type, count = 18) {
   if (!sourceEl) return;
   const rect = sourceEl.getBoundingClientRect();
   const originX = rect.left + rect.width / 2;
@@ -295,18 +326,18 @@ function renderParticles() {
 renderParticles();
 
 /* -------------------------------------------------------------
- * 3. Floating Reaction Numbers (+1 Effect)
+ * 3. Floating Reaction Numbers (+1 🔥 / +1 🥶 Effect)
  * ------------------------------------------------------------- */
 function spawnFloatingReaction(cardEl, type) {
   if (!cardEl) return;
   const reaction = document.createElement('div');
   reaction.className = `floating-reaction ${type}`;
-  reaction.textContent = type === 'fire' ? '+1 FIRE' : '+1 COLD';
+  reaction.textContent = type === 'fire' ? '+1 🔥' : '+1 🥶';
 
   const rect = cardEl.getBoundingClientRect();
   const randomOffsetX = (Math.random() - 0.5) * 56;
   reaction.style.left = `${rect.left + rect.width / 2 + randomOffsetX}px`;
-  reaction.style.top = `${rect.top + rect.height * 0.38}px`;
+  reaction.style.top = `${rect.top + rect.height * 0.36}px`;
 
   document.body.appendChild(reaction);
   setTimeout(() => reaction.remove(), 880);
@@ -316,14 +347,14 @@ function spawnFloatingReaction(cardEl, type) {
  * 4. UI Rendering & Real-Time Analytics
  * ------------------------------------------------------------- */
 function updateProtectionUI() {
-  const locked = Boolean(state.protection.votingLocked);
+  const locked = Boolean(state.protection.votingLocked || state.protection.lockVoting);
   const protectReset = state.protection.protectReset !== false;
 
   if (liveVotingDot) {
     liveVotingDot.classList.toggle('locked', locked);
   }
   if (liveVotingLabel) {
-    liveVotingLabel.textContent = locked ? 'Voting Locked' : 'Voting Open';
+    liveVotingLabel.textContent = locked ? 'VOTING PAUSED' : 'LIVE ARENA';
   }
   if (fireCard) fireCard.classList.toggle('voting-locked', locked);
   if (coldCard) coldCard.classList.toggle('voting-locked', locked);
@@ -402,10 +433,11 @@ function updateUI(newData, triggeredOption = null) {
     root.style.setProperty('--cold-scale', '0.5');
     if (fireBarEl) fireBarEl.style.transform = 'scaleX(0)';
     if (coldBarEl) coldBarEl.style.transform = 'scaleX(0)';
+    if (battleDivider) battleDivider.style.left = '50%';
     fireRatioText.textContent = '50%';
     coldRatioText.textContent = '50%';
-    leadPill.textContent = 'Duel Tied';
-    leadPill.style.color = 'var(--text-secondary)';
+    leadPill.textContent = 'DUEL TIED';
+    leadPill.style.color = 'var(--color-ink-2)';
   } else {
     const fireRatio = Math.max(0, Math.min(1, state.fire / total));
     const coldRatio = Math.max(0, Math.min(1, state.cold / total));
@@ -413,30 +445,30 @@ function updateUI(newData, triggeredOption = null) {
     root.style.setProperty('--cold-scale', coldRatio.toFixed(4));
     if (fireBarEl) fireBarEl.style.transform = `scaleX(${fireRatio.toFixed(4)})`;
     if (coldBarEl) coldBarEl.style.transform = `scaleX(${coldRatio.toFixed(4)})`;
+    if (battleDivider) battleDivider.style.left = `${firePct}%`;
 
     fireRatioText.textContent = `${firePct}%`;
     coldRatioText.textContent = `${coldPct}%`;
 
     if (state.fire > state.cold) {
       const leadDiff = state.fire - state.cold;
-      leadPill.textContent = `Fire +${leadDiff.toLocaleString()}`;
+      leadPill.textContent = `🔥 FIRE +${leadDiff.toLocaleString()}`;
       leadPill.style.color = 'var(--fire-primary)';
     } else if (state.cold > state.fire) {
       const leadDiff = state.cold - state.fire;
-      leadPill.textContent = `Cold +${leadDiff.toLocaleString()}`;
+      leadPill.textContent = `COLD +${leadDiff.toLocaleString()} 🥶`;
       leadPill.style.color = 'var(--cold-primary)';
     } else {
-      leadPill.textContent = 'Duel Tied';
-      leadPill.style.color = 'var(--text-primary)';
+      leadPill.textContent = 'DUEL TIED';
+      leadPill.style.color = 'var(--color-ink)';
     }
   }
 
-  // Keep battleFillLeft / battleFillRight / battleDivider referenced for Hallmark wiring contract
   if (battleFillLeft && battleFillRight && battleDivider) {
-    battleDivider.style.opacity = total === 0 ? '0.65' : '1';
+    battleDivider.style.opacity = total === 0 ? '0.7' : '1';
   }
 
-  // Leader Tags & Leading Card Highlight
+  // Leader Crown Tags & Leading Card Highlight
   if (total > 0 && state.fire > state.cold) {
     fireLeaderTag.classList.add('visible');
     coldLeaderTag.classList.remove('visible');
@@ -458,11 +490,11 @@ function updateUI(newData, triggeredOption = null) {
   if (total > 0) {
     const fireBias = state.fire / total;
     const coldBias = state.cold / total;
-    ambientFireOrb.style.opacity = (0.2 + fireBias * 0.45).toFixed(2);
-    ambientColdOrb.style.opacity = (0.2 + coldBias * 0.45).toFixed(2);
+    ambientFireOrb.style.opacity = (0.22 + fireBias * 0.45).toFixed(2);
+    ambientColdOrb.style.opacity = (0.22 + coldBias * 0.45).toFixed(2);
   } else {
-    ambientFireOrb.style.opacity = '0.32';
-    ambientColdOrb.style.opacity = '0.32';
+    ambientFireOrb.style.opacity = '0.38';
+    ambientColdOrb.style.opacity = '0.38';
   }
 
   // Trigger feedback for the exact card that voted
@@ -494,7 +526,7 @@ function updateUI(newData, triggeredOption = null) {
  * 5. Direct Voting & Protected Reset Handlers
  * ------------------------------------------------------------- */
 function castVote(option) {
-  if (state.protection.votingLocked) {
+  if (state.protection.votingLocked || state.protection.lockVoting) {
     showToast('Voting is paused by Arena Moderator');
     return;
   }
@@ -502,7 +534,7 @@ function castVote(option) {
   // Mobile tactile haptic feedback
   if ('vibrate' in navigator) {
     try {
-      navigator.vibrate(22);
+      navigator.vibrate(25);
     } catch (e) {
       // Haptics optional
     }
@@ -522,8 +554,10 @@ function castVote(option) {
 async function resetArena() {
   if (state.protection.protectReset && !state.adminUnlocked) {
     state.pendingResetAfterAuth = true;
-    showToast('Admin authentication required to reset scores');
-    openAdminGate();
+    showToast('Admin authentication required (/admin)');
+    if (state.isAdminRoute) {
+      openAdminGate();
+    }
     return;
   }
 
@@ -568,7 +602,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === '2' || e.code === 'Numpad2') {
     e.preventDefault();
     castVote('cold');
-  } else if (e.key === 'r' || e.key === 'R') {
+  } else if ((e.key === 'r' || e.key === 'R') && (state.isAdminRoute || state.adminUnlocked)) {
     e.preventDefault();
     resetArena();
   } else if (e.key === 'p' || e.key === 'P') {
@@ -577,7 +611,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
     toggleFullscreen();
-  } else if (e.key === 's' || e.key === 'S') {
+  } else if ((e.key === 's' || e.key === 'S') && state.isAdminRoute) {
     e.preventDefault();
     toggleSettings();
   } else if (e.key === 'Escape') {
@@ -621,7 +655,7 @@ function connectWebSocket() {
           updateProtectionUI();
         } else if (payload.type === 'AUTH_REQUIRED') {
           showToast(payload.message || 'Administrator authentication required');
-          openAdminGate();
+          if (state.isAdminRoute) openAdminGate();
         } else if (payload.type === 'LOCKED') {
           showToast(payload.message || 'Voting is currently locked');
         } else if (payload.type === 'VOTE' && payload.option) {
@@ -685,8 +719,25 @@ async function syncServerSessionAndProtection() {
       sessionStorage.removeItem('offline_admin_token');
     }
     updateProtectionUI();
+
+    // If user navigated to /admin, automatically present Admin Studio or Admin Gate
+    if (state.isAdminRoute) {
+      if (state.adminUnlocked) {
+        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+        closeAdminGate();
+      } else {
+        openAdminGate();
+      }
+    }
   } catch (err) {
-    // Offline static mode
+    // Offline static mode fallback for /admin
+    if (state.isAdminRoute) {
+      if (state.adminUnlocked) {
+        if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+      } else {
+        openAdminGate();
+      }
+    }
   }
 }
 
@@ -713,6 +764,7 @@ function toggleFullscreen() {
 if (projectionBtn) projectionBtn.addEventListener('click', toggleProjectionMode);
 if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
 if (resetBtn) resetBtn.addEventListener('click', resetArena);
+if (studioResetBtn) studioResetBtn.addEventListener('click', resetArena);
 
 function showToast(msg) {
   if (!toastMessage) return;
@@ -722,7 +774,7 @@ function showToast(msg) {
 }
 
 /* -------------------------------------------------------------
- * 8. Settings Drawer, Mail Domain Auth & Protection Controls
+ * 8. /admin Studio Drawer, Mail Domain Auth & Protection Controls
  * ------------------------------------------------------------- */
 function openAdminGate() {
   if (adminGateModalOverlay) {
@@ -786,7 +838,10 @@ async function lockSettings() {
   sessionStorage.removeItem('offline_admin_auth');
   sessionStorage.removeItem('offline_admin_token');
   closeSettings();
-  showToast('Admin Session Locked');
+  showToast('Admin Session Locked 🔒');
+  if (state.isAdminRoute) {
+    openAdminGate();
+  }
 }
 
 if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
@@ -835,7 +890,7 @@ if (adminLoginForm) {
 
           if (response.ok) {
             const payload = await response.json();
-            if (payload.ok) {
+            if (payload.ok || payload.authenticated) {
               authenticated = true;
               state.adminToken = payload.token || '';
               sessionStorage.setItem('offline_admin_token', state.adminToken);
@@ -868,6 +923,8 @@ if (adminLoginForm) {
 
       if (authenticated) {
         state.adminUnlocked = true;
+        state.isAdminRoute = true;
+        document.body.classList.add('admin-route');
         sessionStorage.setItem('offline_admin_auth', 'unlocked');
         if (adminPassInput) adminPassInput.value = '';
         if (adminIdentityLabel) {
@@ -881,7 +938,7 @@ if (adminLoginForm) {
           await resetArena();
         } else if (settingsModalOverlay) {
           settingsModalOverlay.classList.add('active');
-          showToast('Administrator Authenticated');
+          showToast('Admin Authenticated 🔓');
         }
       } else {
         if (adminErrorMsg) {
@@ -949,9 +1006,10 @@ if (protectResetToggleBtn) {
 
 if (lockVotingToggleBtn) {
   lockVotingToggleBtn.addEventListener('click', () => {
-    const nextVal = !state.protection.votingLocked;
+    const currentlyLocked = Boolean(state.protection.votingLocked || state.protection.lockVoting);
+    const nextVal = !currentlyLocked;
     updateServerProtection(
-      { votingLocked: nextVal },
+      { votingLocked: nextVal, lockVoting: nextVal },
       nextVal ? 'Live Audience Voting Locked' : 'Live Audience Voting Unlocked'
     );
   });
@@ -965,7 +1023,7 @@ function toggleSound() {
     soundToggleBtn.textContent = state.soundEnabled ? 'Sound ON' : 'Muted';
   }
   if (soundIcon) {
-    soundIcon.style.opacity = state.soundEnabled ? '1' : '0.45';
+    soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
   }
   if (soundStatusText) {
     soundStatusText.textContent = state.soundEnabled
@@ -986,7 +1044,7 @@ function toggleDemoMode() {
   if (demoStatusText) {
     demoStatusText.textContent = state.demoMode
       ? 'Simulating audience traffic...'
-      : 'Simulates live crowd traffic';
+      : 'Simulates live crowd voting';
   }
 
   if (state.demoMode) {
@@ -1005,32 +1063,32 @@ if (demoToggleBtn) demoToggleBtn.addEventListener('click', toggleDemoMode);
 // Theme Studio Palette Presets
 const THEME_PRESETS = {
   'offline-vybes': {
-    fire: '#ff4a1c',
-    fireSec: '#ff8c24',
-    fireAccent: '#c4f82a',
-    cold: '#00d8ff',
-    coldSec: '#2563eb',
-    coldAccent: '#7c3aed'
+    fire: '#ff3b00',
+    fireSec: '#ff8800',
+    fireAccent: '#b6ff00',
+    cold: '#00f0ff',
+    coldSec: '#0077ff',
+    coldAccent: '#8a2be2'
   },
   'solar-glacial': {
-    fire: '#ff5500',
-    fireSec: '#ff9500',
-    fireAccent: '#ff1e56',
+    fire: '#ff4500',
+    fireSec: '#ff8c00',
+    fireAccent: '#ff0055',
     cold: '#00d2ff',
     coldSec: '#0077ff',
     coldAccent: '#7b2cbf'
   },
   'cyber-neon': {
-    fire: '#ff1f8f',
-    fireSec: '#ff5ca8',
+    fire: '#ff007f',
+    fireSec: '#ff3399',
     fireAccent: '#ff0055',
-    cold: '#00f0ff',
+    cold: '#00f3ff',
     coldSec: '#0088ff',
     coldAccent: '#7b00ff'
   },
   'radioactive-violet': {
-    fire: '#10b981',
-    fireSec: '#34d399',
+    fire: '#00ff88',
+    fireSec: '#10b981',
     fireAccent: '#06d6a0',
     cold: '#a855f7',
     coldSec: '#6366f1',
@@ -1042,15 +1100,15 @@ function applyPalette(theme) {
   const root = document.documentElement;
   root.style.setProperty('--fire-primary', theme.fire);
   root.style.setProperty('--fire-secondary', theme.fireSec);
-  root.style.setProperty('--fire-gradient', `linear-gradient(135deg, ${theme.fireSec} 0%, ${theme.fire} 55%, ${theme.fireAccent} 100%)`);
-  root.style.setProperty('--fire-glow', `${theme.fire}66`);
-  root.style.setProperty('--fire-subtle', `${theme.fire}22`);
+  root.style.setProperty('--fire-glow', `${theme.fire}88`);
+  root.style.setProperty('--fire-soft', `${theme.fire}33`);
+  root.style.setProperty('--fire-border', `${theme.fire}99`);
 
   root.style.setProperty('--cold-primary', theme.cold);
   root.style.setProperty('--cold-secondary', theme.coldSec);
-  root.style.setProperty('--cold-gradient', `linear-gradient(135deg, ${theme.cold} 0%, ${theme.coldSec} 55%, ${theme.coldAccent} 100%)`);
-  root.style.setProperty('--cold-glow', `${theme.cold}66`);
-  root.style.setProperty('--cold-subtle', `${theme.cold}22`);
+  root.style.setProperty('--cold-glow', `${theme.cold}88`);
+  root.style.setProperty('--cold-soft', `${theme.cold}33`);
+  root.style.setProperty('--cold-border', `${theme.cold}99`);
 
   if (fireColorPicker) fireColorPicker.value = theme.fire;
   if (fireHexDisplay) fireHexDisplay.value = theme.fire;
@@ -1089,15 +1147,15 @@ if (applyCustomThemeBtn) {
     const customTheme = {
       fire: fireColorPicker.value,
       fireSec: fireColorPicker.value,
-      fireAccent: '#c4f82a',
+      fireAccent: '#b6ff00',
       cold: coldColorPicker.value,
       coldSec: coldColorPicker.value,
-      coldAccent: '#7c3aed'
+      coldAccent: '#8a2be2'
     };
     presetCards.forEach(c => c.classList.remove('active'));
     applyPalette(customTheme);
     closeSettings();
-    showToast('Custom Theme Applied');
+    showToast('Custom Theme Applied!');
   });
 }
 
@@ -1105,7 +1163,7 @@ if (copyCssBtn) {
   copyCssBtn.addEventListener('click', () => {
     const cssTokens = `:root {\n  --fire-primary: ${fireColorPicker.value};\n  --cold-primary: ${coldColorPicker.value};\n}`;
     navigator.clipboard.writeText(cssTokens).then(() => {
-      showToast('CSS Variables Copied');
+      showToast('CSS Variables Copied!');
     }).catch(() => {
       showToast('Check console for tokens');
       console.log(cssTokens);
@@ -1113,7 +1171,21 @@ if (copyCssBtn) {
   });
 }
 
+// Register PWA Service Worker for Mobile App Experience
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 // Initialize Application
+if (state.isAdminRoute) {
+  if (state.adminUnlocked) {
+    if (settingsModalOverlay) settingsModalOverlay.classList.add('active');
+  } else {
+    openAdminGate();
+  }
+}
 connectWebSocket();
 syncServerSessionAndProtection();
 updateUI({ fire: 0, cold: 0 });

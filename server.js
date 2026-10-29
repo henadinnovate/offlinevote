@@ -363,6 +363,7 @@ const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -640,8 +641,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Static File Serving
-  const safePath = path.normalize(pathname === '/' ? 'index.html' : pathname).replace(/^(\.\.(\/|\\|$))+/, '');
+  // Static File Serving (Support / and /admin SPA route)
+  const resolvedRoute = (pathname === '/' || pathname === '/admin' || pathname === '/admin/')
+    ? 'index.html'
+    : pathname;
+  const safePath = path.normalize(resolvedRoute).replace(/^(\.\.(\/|\\|$))+/, '');
   const filePath = path.join(__dirname, safePath);
   const ext = path.extname(filePath);
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
