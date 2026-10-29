@@ -2,6 +2,8 @@
 
 An ultra-vibrant, high-performance real-time sentiment arena and audience polling display. Built with modern glassmorphism, dynamic ambient stage lighting, particle explosion physics, synthesized Web Audio sound effects, and full hardware keypad bridge support.
 
+Live Production URL: **[https://offlinevote.falhen.com](https://offlinevote.falhen.com)**
+
 ---
 
 ## ⚡ Quick Start
@@ -13,7 +15,20 @@ node server.js
 ```
 
 ### 2. View in Browser
-Open: [http://localhost:8080](http://localhost:8080)
+- **Local Dev**: [http://localhost:8080](http://localhost:8080)
+- **Live Production**: [https://offlinevote.falhen.com](https://offlinevote.falhen.com)
+
+---
+
+## 🌐 Custom Subdomain Setup (`offlinevote.falhen.com`)
+
+For full DNS setup instructions, see [DNS_CONFIGURATION.md](file:///Users/henryfalonipe/.gemini/antigravity-ide/scratch/live-polling-arena/DNS_CONFIGURATION.md).
+
+- **DNS Provider**: Cloudflare
+- **Type**: `CNAME`
+- **Host**: `offlinevote`
+- **Target**: `offlinevote.onrender.com`
+- **SSL**: Automatic Let's Encrypt managed by Render
 
 ---
 
